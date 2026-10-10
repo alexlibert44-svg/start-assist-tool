@@ -102,10 +102,10 @@ export const storage = {
     const { completed, ...rest } = u;
     const row = habitToRow(rest);
     if (Object.keys(row).length > 0) {
-      const rows = check(await c.from("habits").update(row).eq("id", id).select()) as HabitRow[];
+      const rows = check(await c.from("habits").update(row as { name?: string }).eq("id", id).select()) as HabitRow[];
       if (!rows[0]) return undefined;
     }
-    if (completed !== undefined) return storage.setCompletion(id, completed);
+    if (completed !== undefined) return storage.setCompletion(id, !!completed);
     return storage.getHabit(id);
   },
   // Idempotent: points are awarded only on the transition points_awarded false -> true (atomic conditional update).
