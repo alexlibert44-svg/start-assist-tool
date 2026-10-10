@@ -40,6 +40,7 @@ export default function ChatPage() {
   // Local message list — the single source of truth for display
   const [chatMessages, setChatMessages] = useState<LocalMessage[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const seededFor = useRef<string | null>(null);
 
   // Seed from server once when data first arrives
   useEffect(() => {
@@ -58,12 +59,14 @@ export default function ChatPage() {
         ]);
       }
       setInitialized(true);
+      seededFor.current = character.id;
     }
   }, [serverMessages, initialized, character.id]);
 
   // When character changes, reset and re-seed
   useEffect(() => {
     setInitialized(false);
+    seededFor.current = null;
     setChatMessages([]);
     setIsAiTyping(false);
   }, [activeCharacterId]);
@@ -112,7 +115,7 @@ export default function ChatPage() {
 
   // Auto-send a request handed over from another character once this chat is loaded
   useEffect(() => {
-    if (initialized && pendingHandoff && pendingHandoff.to === character.id && !isAiTyping) {
+    if (initialized && seededFor.current === character.id && pendingHandoff && pendingHandoff.to === character.id && !isAiTyping) {
       const h = pendingHandoff;
       clearHandoff();
       void sendText(h.question, h.from);
