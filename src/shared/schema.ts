@@ -17,6 +17,11 @@ export const habits = pgTable("habits", {
   name: text("name").notNull(),
   completed: boolean("completed").default(false),
   streak: integer("streak").default(0),
+  dueAt: timestamp("due_at", { mode: "string", withTimezone: true }),
+  linkedCharacter: text("linked_character"), // specialist whose in-app activity completes this task
+  pointsAwarded: boolean("points_awarded").default(false),
+  completedAt: timestamp("completed_at", { mode: "string", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).defaultNow(),
 });
 
 // Profile / Progress
@@ -32,7 +37,7 @@ export const profile = pgTable("profile", {
 
 // Types & Zod Schemas
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
-export const insertHabitSchema = createInsertSchema(habits).omit({ id: true });
+export const insertHabitSchema = createInsertSchema(habits).omit({ id: true, pointsAwarded: true, completedAt: true, createdAt: true });
 export const insertProfileSchema = createInsertSchema(profile).omit({ id: true, memberSince: true });
 
 export type Message = typeof messages.$inferSelect;
