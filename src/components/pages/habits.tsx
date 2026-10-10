@@ -218,6 +218,13 @@ export default function HabitsPage() {
                       >
                         {habit.name}
                       </span>
+                      {(habit.dueAt || habit.linkedCharacter) && (
+                        <p className="text-xs text-white/40 mt-0.5 truncate">
+                          {habit.dueAt && new Date(habit.dueAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
+                          {habit.dueAt && habit.linkedCharacter && " · "}
+                          {habit.linkedCharacter && `Auto-completes with ${habit.linkedCharacter}`}
+                        </p>
+                      )}
                       {isDone && (
                         <p className={`text-xs ${character.theme.text} opacity-80 mt-0.5`}>
                           +{SCORE_PER_HABIT} points earned
