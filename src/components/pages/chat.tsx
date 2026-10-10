@@ -27,6 +27,9 @@ export default function ChatPage() {
   const activeCharacterId = useCharacter((s) => s.activeCharacterId);
   const { data: serverMessages } = useMessages();
   const createMessage = useCreateMessage();
+  const pendingHandoff = useCharacter((s) => s.pendingHandoff);
+  const doHandoff = useCharacter((s) => s.handoff);
+  const clearHandoff = useCharacter((s) => s.clearHandoff);
 
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -37,6 +40,7 @@ export default function ChatPage() {
   // Local message list — the single source of truth for display
   const [chatMessages, setChatMessages] = useState<LocalMessage[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const seededFor = useRef<string | null>(null);
 
   // Seed from server once when data first arrives
   useEffect(() => {
@@ -55,12 +59,14 @@ export default function ChatPage() {
         ]);
       }
       setInitialized(true);
+      seededFor.current = character.id;
     }
   }, [serverMessages, initialized, character.id]);
 
   // When character changes, reset and re-seed
   useEffect(() => {
     setInitialized(false);
+    seededFor.current = null;
     setChatMessages([]);
     setIsAiTyping(false);
   }, [activeCharacterId]);
@@ -103,8 +109,21 @@ export default function ChatPage() {
     e.preventDefault();
     const userText = input.trim();
     if (!userText || isAiTyping) return;
-
     setInput("");
+    await sendText(userText);
+  };
+
+  // Auto-send a request handed over from another character once this chat is loaded
+  useEffect(() => {
+    if (initialized && seededFor.current === character.id && pendingHandoff && pendingHandoff.to === character.id && !isAiTyping) {
+      const h = pendingHandoff;
+      clearHandoff();
+      void sendText(h.question, h.from);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialized, pendingHandoff, character.id]);
+
+  const sendText = async (userText: string, handoffFrom?: string) => {
     setIsAiTyping(true);
 
     // 1. Add user message immediately — never disappears
@@ -131,6 +150,7 @@ export default function ChatPage() {
     });
 
     let reply = "I'm here. How can I help?";
+    let handoffTarget: { character: string; question: string } | null = null;
 
     try {
       // 4. Call AI with timeout
@@ -146,6 +166,9 @@ export default function ChatPage() {
             character: character.id,
             characterId: character.id,
             history: historyForAI,
+            handoffFrom,
+            clientNow: new Date().toString(),
+            tzOffsetMinutes: new Date().getTimezoneOffset(),
           }),
           signal: controller.signal,
         });
@@ -153,6 +176,11 @@ export default function ChatPage() {
 
         if (response.ok) {
           const data = await response.json();
+          if (data.dataChanged) {
+            queryClient.invalidateQueries({ queryKey: [api.habits.list.path] });
+            queryClient.invalidateQueries({ queryKey: [api.profile.get.path] });
+          }
+          if (data.handoff?.character && data.handoff?.question) handoffTarget = data.handoff;
           if (data.reply && typeof data.reply === "string" && data.reply.trim()) {
             reply = data.reply;
           } else {
@@ -191,6 +219,10 @@ export default function ChatPage() {
       });
     } finally {
       setIsAiTyping(false);
+    }
+    if (handoffTarget) {
+      const target = handoffTarget;
+      setTimeout(() => doHandoff(character.id, target.character as typeof character.id, target.question), 700);
     }
   };
 
@@ -251,7 +283,7 @@ export default function ChatPage() {
                       : `${character.theme.chatBubble} text-white rounded-tl-sm shadow-xl ${character.theme.glow} border ${character.theme.border}`
                   }`}
                 >
-                  <p className="text-[15px] sm:text-base">{msg.content}</p>
+                  <p className="text-[15px] sm:text-base whitespace-pre-line">{msg.content.replace(/\*\*/g, "")}</p>
                 </div>
               </motion.div>
             );

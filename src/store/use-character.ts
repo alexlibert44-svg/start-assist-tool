@@ -82,10 +82,17 @@ interface CharacterStore {
   activeCharacterId: CharacterId;
   setActiveCharacter: (id: CharacterId) => void;
   getActiveCharacter: () => Character;
+  // Request handed from one character to another; the target chat auto-sends it
+  pendingHandoff: { to: CharacterId; from: CharacterId; question: string } | null;
+  handoff: (from: CharacterId, to: CharacterId, question: string) => void;
+  clearHandoff: () => void;
 }
 
 export const useCharacter = create<CharacterStore>((set, get) => ({
   activeCharacterId: 'Larry',
   setActiveCharacter: (id) => set({ activeCharacterId: id }),
   getActiveCharacter: () => CHARACTERS[get().activeCharacterId],
+  pendingHandoff: null,
+  handoff: (from, to, question) => set({ pendingHandoff: { from, to, question }, activeCharacterId: to }),
+  clearHandoff: () => set({ pendingHandoff: null }),
 }));

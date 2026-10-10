@@ -17,20 +17,35 @@ export type Database = {
       habits: {
         Row: {
           completed: boolean | null
+          completed_at: string | null
+          created_at: string | null
+          due_at: string | null
           id: number
+          linked_character: string | null
           name: string
+          points_awarded: boolean
           streak: number | null
         }
         Insert: {
           completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          due_at?: string | null
           id?: number
+          linked_character?: string | null
           name: string
+          points_awarded?: boolean
           streak?: number | null
         }
         Update: {
           completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          due_at?: string | null
           id?: number
+          linked_character?: string | null
           name?: string
+          points_awarded?: boolean
           streak?: number | null
         }
         Relationships: []

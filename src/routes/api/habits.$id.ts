@@ -1,14 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { api } from "@/shared/routes";
-import { storage, zodError, SCORE_PER_HABIT, calcLevel } from "@/server/storage.server";
-
-async function adjustScore(delta: number) {
-  const prof = await storage.getProfile();
-  if (!prof) return;
-  const newScore = Math.max(0, (prof.xp ?? 0) + delta);
-  await storage.updateProfile({ xp: newScore, level: calcLevel(newScore) });
-}
+import { storage, zodError } from "@/server/storage.server";
 
 export const Route = createFileRoute("/api/habits/$id")({
   server: {
@@ -20,15 +13,9 @@ export const Route = createFileRoute("/api/habits/$id")({
           const current = (await storage.getHabits()).find((h) => h.id === id);
           if (!current) return Response.json({ message: "Habit not found" }, { status: 404 });
 
-          const wasCompleted = current.completed ?? false;
-          const isNowCompleted = input.completed ?? wasCompleted;
-
+          // Points are awarded/deducted idempotently inside storage.setCompletion
           const item = await storage.updateHabit(id, input);
           if (!item) return Response.json({ message: "Habit not found" }, { status: 404 });
-
-          // Award points when checking, deduct when unchecking
-          if (!wasCompleted && isNowCompleted) await adjustScore(SCORE_PER_HABIT);
-          else if (wasCompleted && !isNowCompleted) await adjustScore(-SCORE_PER_HABIT);
 
           return Response.json(item);
         } catch (err) {
@@ -42,7 +29,6 @@ export const Route = createFileRoute("/api/habits/$id")({
           if (isNaN(id)) return Response.json({ message: "Invalid habit id" }, { status: 400 });
           const habit = (await storage.getHabits()).find((h) => h.id === id);
           if (!habit) return Response.json({ message: "Habit not found" }, { status: 404 });
-          if (habit.completed) await adjustScore(-SCORE_PER_HABIT);
           const deleted = await storage.deleteHabit(id);
           if (!deleted) return Response.json({ message: "Habit not found" }, { status: 404 });
           return new Response(null, { status: 204 });
