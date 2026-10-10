@@ -10,33 +10,139 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HabitsRouteImport } from './routes/habits'
+import { Route as ProgressRouteImport } from './routes/progress'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiHabitsRouteImport } from './routes/api/habits'
+import { Route as ApiMessagesRouteImport } from './routes/api/messages'
+import { Route as ApiProfileRouteImport } from './routes/api/profile'
+import { Route as ApiHabitsIdRouteImport } from './routes/api/habits.$id'
+import { Route as ApiMessagesClearRouteImport } from './routes/api/messages.clear'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HabitsRoute = HabitsRouteImport.update({
+  id: '/habits',
+  path: '/habits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProgressRoute = ProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHabitsRoute = ApiHabitsRouteImport.update({
+  id: '/api/habits',
+  path: '/api/habits',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMessagesRoute = ApiMessagesRouteImport.update({
+  id: '/api/messages',
+  path: '/api/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProfileRoute = ApiProfileRouteImport.update({
+  id: '/api/profile',
+  path: '/api/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHabitsIdRoute = ApiHabitsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiHabitsRoute,
+} as any)
+const ApiMessagesClearRoute = ApiMessagesClearRouteImport.update({
+  id: '/clear',
+  path: '/clear',
+  getParentRoute: () => ApiMessagesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/habits': typeof HabitsRoute
+  '/progress': typeof ProgressRoute
+  '/api/chat': typeof ApiChatRoute
+  '/api/habits': typeof ApiHabitsRouteWithChildren
+  '/api/messages': typeof ApiMessagesRouteWithChildren
+  '/api/profile': typeof ApiProfileRoute
+  '/api/habits/$id': typeof ApiHabitsIdRoute
+  '/api/messages/clear': typeof ApiMessagesClearRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/habits': typeof HabitsRoute
+  '/progress': typeof ProgressRoute
+  '/api/chat': typeof ApiChatRoute
+  '/api/habits': typeof ApiHabitsRouteWithChildren
+  '/api/messages': typeof ApiMessagesRouteWithChildren
+  '/api/profile': typeof ApiProfileRoute
+  '/api/habits/$id': typeof ApiHabitsIdRoute
+  '/api/messages/clear': typeof ApiMessagesClearRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/habits': typeof HabitsRoute
+  '/progress': typeof ProgressRoute
+  '/api/chat': typeof ApiChatRoute
+  '/api/habits': typeof ApiHabitsRouteWithChildren
+  '/api/messages': typeof ApiMessagesRouteWithChildren
+  '/api/profile': typeof ApiProfileRoute
+  '/api/habits/$id': typeof ApiHabitsIdRoute
+  '/api/messages/clear': typeof ApiMessagesClearRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/habits'
+    | '/progress'
+    | '/api/chat'
+    | '/api/habits'
+    | '/api/messages'
+    | '/api/profile'
+    | '/api/habits/$id'
+    | '/api/messages/clear'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/habits'
+    | '/progress'
+    | '/api/chat'
+    | '/api/habits'
+    | '/api/messages'
+    | '/api/profile'
+    | '/api/habits/$id'
+    | '/api/messages/clear'
+  id:
+    | '__root__'
+    | '/'
+    | '/habits'
+    | '/progress'
+    | '/api/chat'
+    | '/api/habits'
+    | '/api/messages'
+    | '/api/profile'
+    | '/api/habits/$id'
+    | '/api/messages/clear'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HabitsRoute: typeof HabitsRoute
+  ProgressRoute: typeof ProgressRoute
+  ApiChatRoute: typeof ApiChatRoute
+  ApiHabitsRoute: typeof ApiHabitsRouteWithChildren
+  ApiMessagesRoute: typeof ApiMessagesRouteWithChildren
+  ApiProfileRoute: typeof ApiProfileRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +154,97 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/habits': {
+      id: '/habits'
+      path: '/habits'
+      fullPath: '/habits'
+      preLoaderRoute: typeof HabitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/progress': {
+      id: '/progress'
+      path: '/progress'
+      fullPath: '/progress'
+      preLoaderRoute: typeof ProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/habits': {
+      id: '/api/habits'
+      path: '/api/habits'
+      fullPath: '/api/habits'
+      preLoaderRoute: typeof ApiHabitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/messages': {
+      id: '/api/messages'
+      path: '/api/messages'
+      fullPath: '/api/messages'
+      preLoaderRoute: typeof ApiMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/profile': {
+      id: '/api/profile'
+      path: '/api/profile'
+      fullPath: '/api/profile'
+      preLoaderRoute: typeof ApiProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/habits/$id': {
+      id: '/api/habits/$id'
+      path: '/$id'
+      fullPath: '/api/habits/$id'
+      preLoaderRoute: typeof ApiHabitsIdRouteImport
+      parentRoute: typeof ApiHabitsRoute
+    }
+    '/api/messages/clear': {
+      id: '/api/messages/clear'
+      path: '/clear'
+      fullPath: '/api/messages/clear'
+      preLoaderRoute: typeof ApiMessagesClearRouteImport
+      parentRoute: typeof ApiMessagesRoute
+    }
   }
 }
 
+interface ApiHabitsRouteChildren {
+  ApiHabitsIdRoute: typeof ApiHabitsIdRoute
+}
+
+const ApiHabitsRouteChildren: ApiHabitsRouteChildren = {
+  ApiHabitsIdRoute: ApiHabitsIdRoute,
+}
+
+const ApiHabitsRouteWithChildren = ApiHabitsRoute._addFileChildren(
+  ApiHabitsRouteChildren,
+)
+
+interface ApiMessagesRouteChildren {
+  ApiMessagesClearRoute: typeof ApiMessagesClearRoute
+}
+
+const ApiMessagesRouteChildren: ApiMessagesRouteChildren = {
+  ApiMessagesClearRoute: ApiMessagesClearRoute,
+}
+
+const ApiMessagesRouteWithChildren = ApiMessagesRoute._addFileChildren(
+  ApiMessagesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HabitsRoute: HabitsRoute,
+  ProgressRoute: ProgressRoute,
+  ApiChatRoute: ApiChatRoute,
+  ApiHabitsRoute: ApiHabitsRouteWithChildren,
+  ApiMessagesRoute: ApiMessagesRouteWithChildren,
+  ApiProfileRoute: ApiProfileRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
