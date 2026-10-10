@@ -1,0 +1,12 @@
+{
+  "source": "replit:https://github.com/alexlibert44-svg/Larry-Assistant",
+  "capabilities": [
+    {"capability": "code/ui", "source": "client/src (wouter, shadcn, zustand)", "outcome": "port screens verbatim into TanStack routes", "status": "verified", "next_action": "none"},
+    {"capability": "api endpoints", "source": "server/routes.ts (Express /api/*)", "outcome": "recreate as TanStack server routes at same paths", "status": "verified", "next_action": "none"},
+    {"capability": "schema", "source": "shared/schema.ts messages/habits/profile", "outcome": "migrate to Lovable Cloud", "status": "verified", "next_action": "none"},
+    {"capability": "records", "source": "Replit Postgres", "outcome": "migrate", "status": "pending", "next_action": "user CSV export"},
+    {"capability": "auth", "source": "none (single-user app)", "outcome": "none needed", "status": "verified", "next_action": "none"},
+    {"capability": "ai chat", "source": "Gemini 2.5 flash via GEMINI_API_KEY", "outcome": "Lovable AI Gateway google/gemini-2.5-flash", "status": "verified", "next_action": "none"},
+    {"capability": "replit_integrations audio/image/batch", "source": "server/replit_integrations (not registered in routes)", "outcome": "unused in source; not ported", "status": "verified", "next_action": "none"}
+  ]
+}
