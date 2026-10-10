@@ -280,7 +280,7 @@ export default function ChatPage() {
                       : `${character.theme.chatBubble} text-white rounded-tl-sm shadow-xl ${character.theme.glow} border ${character.theme.border}`
                   }`}
                 >
-                  <p className="text-[15px] sm:text-base">{msg.content}</p>
+                  <p className="text-[15px] sm:text-base whitespace-pre-line">{msg.content.replace(/\*\*/g, "")}</p>
                 </div>
               </motion.div>
             );

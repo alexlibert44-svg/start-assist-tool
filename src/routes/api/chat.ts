@@ -288,7 +288,11 @@ export const Route = createFileRoute("/api/chat")({
             reply = text;
           }
           reply = reply.trim();
-          if (!reply) reply = ctx.handoff ? `Handing this to ${ctx.handoff.character}.` : "I'm here. What's the task?";
+          if (!reply) {
+            reply = ctx.handoff ? `Handing this to ${ctx.handoff.character}.`
+              : ctx.changed ? "Done. Your task list and points have been updated."
+              : "I'm here. What's the task?";
+          }
           return Response.json({ reply, handoff: ctx.handoff, dataChanged: ctx.changed });
         } catch (error) {
           console.error("CHAT ERROR:", error);
