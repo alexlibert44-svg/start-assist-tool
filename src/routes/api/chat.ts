@@ -240,7 +240,7 @@ export const Route = createFileRoute("/api/chat")({
           const charId = resolveCharacterId(character || characterId);
           const ctx: Ctx = { charId, handoff: null, changed: false };
 
-          let system = CHARACTER_SYSTEM_PROMPTS[charId] + "\n\nAlways reply in the language of the user's latest message.";
+          let system = CHARACTER_SYSTEM_PROMPTS[charId] + "\n\nAlways reply in the same language as the user's latest message (e.g. English question -> English answer), regardless of earlier messages or the user's location.";
           const off = typeof tzOffsetMinutes === "number" ? -tzOffsetMinutes : 0;
           const sign = off >= 0 ? "+" : "-";
           const offStr = `${sign}${String(Math.floor(Math.abs(off) / 60)).padStart(2, "0")}:${String(Math.abs(off) % 60).padStart(2, "0")}`;
