@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { api } from "@/shared/routes";
-import { storage, zodError } from "@/server/storage.server";
+import { storage, zodError, tzFrom } from "@/server/storage.server";
 
 export const Route = createFileRoute("/api/habits/$id")({
   server: {
@@ -10,11 +10,12 @@ export const Route = createFileRoute("/api/habits/$id")({
         try {
           const id = parseInt(params.id);
           const input = api.habits.update.input.parse(await request.json());
-          const current = (await storage.getHabits()).find((h) => h.id === id);
+          const tz = tzFrom(new URL(request.url).searchParams.get("tz"));
+          const current = await storage.getHabit(id, tz);
           if (!current) return Response.json({ message: "Habit not found" }, { status: 404 });
 
           // Points are awarded/deducted idempotently inside storage.setCompletion
-          const item = await storage.updateHabit(id, input);
+          const item = await storage.updateHabit(id, input, tz);
           if (!item) return Response.json({ message: "Habit not found" }, { status: 404 });
 
           return Response.json(item);
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/api/habits/$id")({
         try {
           const id = parseInt(params.id);
           if (isNaN(id)) return Response.json({ message: "Invalid habit id" }, { status: 400 });
-          const habit = (await storage.getHabits()).find((h) => h.id === id);
+          const habit = await storage.getHabit(id);
           if (!habit) return Response.json({ message: "Habit not found" }, { status: 404 });
           const deleted = await storage.deleteHabit(id);
           if (!deleted) return Response.json({ message: "Habit not found" }, { status: 404 });
