@@ -13,11 +13,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as HabitsRouteImport } from './routes/habits'
 import { Route as ProgressRouteImport } from './routes/progress'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
 import { Route as ApiHabitsRouteImport } from './routes/api/habits'
 import { Route as ApiMessagesRouteImport } from './routes/api/messages'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
+import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations.$id'
 import { Route as ApiHabitsIdRouteImport } from './routes/api/habits.$id'
 import { Route as ApiMessagesClearRouteImport } from './routes/api/messages.clear'
+import { Route as ApiConversationsIdMessagesRouteImport } from './routes/api/conversations.$id.messages'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -39,6 +42,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiConversationsRoute = ApiConversationsRouteImport.update({
+  id: '/api/conversations',
+  path: '/api/conversations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHabitsRoute = ApiHabitsRouteImport.update({
   id: '/api/habits',
   path: '/api/habits',
@@ -54,6 +62,11 @@ const ApiProfileRoute = ApiProfileRouteImport.update({
   path: '/api/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiConversationsIdRoute = ApiConversationsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiConversationsRoute,
+} as any)
 const ApiHabitsIdRoute = ApiHabitsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -64,28 +77,40 @@ const ApiMessagesClearRoute = ApiMessagesClearRouteImport.update({
   path: '/clear',
   getParentRoute: () => ApiMessagesRoute,
 } as any)
+const ApiConversationsIdMessagesRoute =
+  ApiConversationsIdMessagesRouteImport.update({
+    id: '/messages',
+    path: '/messages',
+    getParentRoute: () => ApiConversationsIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/habits': typeof HabitsRoute
   '/progress': typeof ProgressRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
+  '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
+  '/api/conversations/$id/messages': typeof ApiConversationsIdMessagesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/habits': typeof HabitsRoute
   '/progress': typeof ProgressRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
+  '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
+  '/api/conversations/$id/messages': typeof ApiConversationsIdMessagesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -93,11 +118,14 @@ export interface FileRoutesById {
   '/habits': typeof HabitsRoute
   '/progress': typeof ProgressRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
+  '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
+  '/api/conversations/$id/messages': typeof ApiConversationsIdMessagesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -106,33 +134,42 @@ export interface FileRouteTypes {
     | '/habits'
     | '/progress'
     | '/api/chat'
+    | '/api/conversations'
     | '/api/habits'
     | '/api/messages'
     | '/api/profile'
+    | '/api/conversations/$id'
     | '/api/habits/$id'
     | '/api/messages/clear'
+    | '/api/conversations/$id/messages'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/habits'
     | '/progress'
     | '/api/chat'
+    | '/api/conversations'
     | '/api/habits'
     | '/api/messages'
     | '/api/profile'
+    | '/api/conversations/$id'
     | '/api/habits/$id'
     | '/api/messages/clear'
+    | '/api/conversations/$id/messages'
   id:
     | '__root__'
     | '/'
     | '/habits'
     | '/progress'
     | '/api/chat'
+    | '/api/conversations'
     | '/api/habits'
     | '/api/messages'
     | '/api/profile'
+    | '/api/conversations/$id'
     | '/api/habits/$id'
     | '/api/messages/clear'
+    | '/api/conversations/$id/messages'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -140,6 +177,7 @@ export interface RootRouteChildren {
   HabitsRoute: typeof HabitsRoute
   ProgressRoute: typeof ProgressRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiConversationsRoute: typeof ApiConversationsRouteWithChildren
   ApiHabitsRoute: typeof ApiHabitsRouteWithChildren
   ApiMessagesRoute: typeof ApiMessagesRouteWithChildren
   ApiProfileRoute: typeof ApiProfileRoute
@@ -175,6 +213,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/conversations': {
+      id: '/api/conversations'
+      path: '/api/conversations'
+      fullPath: '/api/conversations'
+      preLoaderRoute: typeof ApiConversationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/habits': {
       id: '/api/habits'
       path: '/api/habits'
@@ -196,6 +241,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/conversations/$id': {
+      id: '/api/conversations/$id'
+      path: '/$id'
+      fullPath: '/api/conversations/$id'
+      preLoaderRoute: typeof ApiConversationsIdRouteImport
+      parentRoute: typeof ApiConversationsRoute
+    }
     '/api/habits/$id': {
       id: '/api/habits/$id'
       path: '/$id'
@@ -210,8 +262,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMessagesClearRouteImport
       parentRoute: typeof ApiMessagesRoute
     }
+    '/api/conversations/$id/messages': {
+      id: '/api/conversations/$id/messages'
+      path: '/messages'
+      fullPath: '/api/conversations/$id/messages'
+      preLoaderRoute: typeof ApiConversationsIdMessagesRouteImport
+      parentRoute: typeof ApiConversationsIdRoute
+    }
   }
 }
+
+interface ApiConversationsIdRouteChildren {
+  ApiConversationsIdMessagesRoute: typeof ApiConversationsIdMessagesRoute
+}
+
+const ApiConversationsIdRouteChildren: ApiConversationsIdRouteChildren = {
+  ApiConversationsIdMessagesRoute: ApiConversationsIdMessagesRoute,
+}
+
+const ApiConversationsIdRouteWithChildren =
+  ApiConversationsIdRoute._addFileChildren(ApiConversationsIdRouteChildren)
+
+interface ApiConversationsRouteChildren {
+  ApiConversationsIdRoute: typeof ApiConversationsIdRouteWithChildren
+}
+
+const ApiConversationsRouteChildren: ApiConversationsRouteChildren = {
+  ApiConversationsIdRoute: ApiConversationsIdRouteWithChildren,
+}
+
+const ApiConversationsRouteWithChildren =
+  ApiConversationsRoute._addFileChildren(ApiConversationsRouteChildren)
 
 interface ApiHabitsRouteChildren {
   ApiHabitsIdRoute: typeof ApiHabitsIdRoute
@@ -242,6 +323,7 @@ const rootRouteChildren: RootRouteChildren = {
   HabitsRoute: HabitsRoute,
   ProgressRoute: ProgressRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiConversationsRoute: ApiConversationsRouteWithChildren,
   ApiHabitsRoute: ApiHabitsRouteWithChildren,
   ApiMessagesRoute: ApiMessagesRouteWithChildren,
   ApiProfileRoute: ApiProfileRoute,
