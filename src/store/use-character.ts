@@ -1,4 +1,8 @@
 import { create } from 'zustand';
+import larryPortrait from '@/assets/larry.jpg.asset.json';
+import senseiPortrait from '@/assets/sensei.jpg.asset.json';
+import drNeoPortrait from '@/assets/dr-neo.png.asset.json';
+import hassanPortrait from '@/assets/hassan.png.asset.json';
 
 export type CharacterId = 'Larry' | 'Sensei' | 'Dr Neo' | 'Hassan';
 
@@ -7,6 +11,7 @@ export interface Character {
   name: string;
   role: string;
   colorName: string;
+  image: string;
   theme: {
     gradient: string;
     chatBubble: string;
@@ -29,6 +34,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     name: 'Larry',
     role: 'Main guide and coordinator',
     colorName: 'purple',
+    image: larryPortrait.url,
     theme: {
       gradient: 'from-purple-600 to-indigo-600',
       chatBubble: 'bg-gradient-to-br from-purple-600/30 to-indigo-600/30 backdrop-blur-xl',
@@ -42,6 +48,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     name: 'Sensei',
     role: 'Wise teacher for learning & knowledge',
     colorName: 'sky blue',
+    image: senseiPortrait.url,
     theme: {
       gradient: 'from-sky-400 to-blue-600',
       chatBubble: 'bg-gradient-to-br from-sky-500/30 to-blue-600/30 backdrop-blur-xl',
@@ -55,6 +62,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     name: 'Dr Neo',
     role: 'Mental clarity & brain health advisor',
     colorName: 'deep navy blue',
+    image: drNeoPortrait.url,
     theme: {
       gradient: 'from-blue-800 to-indigo-900',
       chatBubble: 'bg-gradient-to-br from-blue-700/30 to-indigo-800/30 backdrop-blur-xl',
@@ -68,6 +76,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     name: 'Hassan',
     role: 'Physical health & fitness motivator',
     colorName: 'green',
+    image: hassanPortrait.url,
     theme: {
       gradient: 'from-emerald-400 to-green-600',
       chatBubble: 'bg-gradient-to-br from-emerald-500/30 to-green-600/30 backdrop-blur-xl',
