@@ -15,6 +15,13 @@
       "when": 1791670127897,
       "tag": "0001_extend_habits_as_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791725692346,
+      "tag": "0002_conversations",
+      "breakpoints": true
     }
   ]
 }
