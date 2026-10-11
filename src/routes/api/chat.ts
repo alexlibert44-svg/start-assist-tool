@@ -283,7 +283,7 @@ export const Route = createFileRoute("/api/chat")({
             if (charId === "Larry") {
               if (habits.length > 0) system += `\n\nCurrent tasks:\n${JSON.stringify(habits.map(taskView))}`;
               const prof = await storage.getProfile();
-              if (prof) system += `\n\nUser Discipline Score: ${prof.xp}, Level: ${prof.level}`;
+              if (prof) system += `\n\nUser points balance: ${prof.xp}`;
             } else {
               const linked = habits.filter((h) => !h.completed && h.linkedCharacter === charId).map(taskView);
               if (linked.length) system += `\n\nOpen tasks linked to your sessions: ${JSON.stringify(linked)}`;
