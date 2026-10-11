@@ -1,17 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Sparkles, Trash2 } from "lucide-react";
+import { Send, Sparkles } from "lucide-react";
 import { useCharacter, WELCOME_MESSAGES, CHARACTERS } from "@/store/use-character";
-import { useConversation, addMessageRequest, CONVERSATIONS_KEY, conversationKey } from "@/hooks/use-conversations";
+import { useConversation, addMessageRequest, CONVERSATIONS_KEY } from "@/hooks/use-conversations";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { queryClient } from "@/lib/queryClient";
 import { api } from "@/shared/routes";
 
@@ -38,8 +31,6 @@ export default function ChatPage({ conversationId }: { conversationId: string })
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isAiTyping, setIsAiTyping] = useState(false);
-  const [showClearDialog, setShowClearDialog] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
 
   // Local message list — the single source of truth for display
   const [chatMessages, setChatMessages] = useState<LocalMessage[]>([]);
@@ -87,30 +78,6 @@ export default function ChatPage({ conversationId }: { conversationId: string })
     }
   }, [chatMessages, isAiTyping]);
 
-  const handleClearChat = async () => {
-    setIsClearing(true);
-    try {
-      const res = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, { method: "DELETE" });
-      if (!res.ok) throw new Error(`Clear failed (${res.status})`);
-      queryClient.invalidateQueries({ queryKey: conversationKey(conversationId) });
-      // Reset local state to welcome message
-      setChatMessages([
-        {
-          id: 0,
-          content: WELCOME_MESSAGES[character.id],
-          sender: character.id,
-          characterId: character.id,
-          createdAt: new Date(),
-        },
-      ]);
-      setInitialized(true);
-    } catch (err) {
-      console.error("Failed to clear chat:", err);
-    } finally {
-      setIsClearing(false);
-      setShowClearDialog(false);
-    }
-  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,8 +198,6 @@ export default function ChatPage({ conversationId }: { conversationId: string })
     }
   };
 
-  // Show the clear button only when there are real messages (not just the welcome placeholder)
-  const hasMessages = chatMessages.some((m) => m.id !== 0);
 
   if (convError) {
     return (
@@ -252,28 +217,6 @@ export default function ChatPage({ conversationId }: { conversationId: string })
           {saveError}
         </div>
       )}
-      {/* Clear Chat Button — top right, only when there are messages */}
-      <AnimatePresence>
-        {hasMessages && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="absolute top-3 right-4 z-20"
-          >
-            <Button
-              variant="ghost"
-              size="sm"
-              data-testid="button-clear-chat"
-              onClick={() => setShowClearDialog(true)}
-              className="text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors rounded-xl gap-1.5 text-xs"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Clear Chat
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Messages Area */}
       <div
@@ -288,7 +231,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
                 key={msg.id}
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                className={`flex flex-col max-w-[85%] ${isUser ? "ml-auto items-end" : "mr-auto items-start"}`}
+                className={`flex flex-col ${isUser ? "ml-auto items-end max-w-[85%]" : "mr-auto items-start max-w-[92%]"}`}
               >
                 {!isUser && (
                   <span
@@ -298,10 +241,10 @@ export default function ChatPage({ conversationId }: { conversationId: string })
                   </span>
                 )}
                 <div
-                  className={`p-4 rounded-2xl shadow-lg leading-relaxed ${
+                  className={`p-5 sm:p-6 rounded-2xl leading-relaxed ${
                     isUser
-                      ? "bg-white/10 backdrop-blur-md border border-white/5 text-white rounded-tr-sm"
-                      : `${character.theme.chatBubble} text-white rounded-tl-sm shadow-xl ${character.theme.glow} border ${character.theme.border}`
+                      ? "bg-white/10 backdrop-blur-md border border-white/5 text-white shadow-lg rounded-tr-sm"
+                      : `${character.theme.chatBubble} text-white rounded-tl-sm shadow-xl ${character.theme.glow} border ${character.theme.border} [text-shadow:0_1px_3px_rgba(0,0,0,0.55)]`
                   }`}
                 >
                   <p className="text-[15px] sm:text-base whitespace-pre-line">{msg.content.replace(/\*\*/g, "")}</p>
@@ -322,7 +265,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
                 {character.name}
               </span>
               <div
-                className={`p-4 rounded-2xl rounded-tl-sm ${character.theme.chatBubble} shadow-xl ${character.theme.glow}`}
+                className={`p-5 rounded-2xl rounded-tl-sm ${character.theme.chatBubble} shadow-xl ${character.theme.glow} border ${character.theme.border}`}
               >
                 <div className="flex space-x-1.5 items-center h-5">
                   <div className="w-2 h-2 rounded-full bg-white/70 animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -380,39 +323,6 @@ export default function ChatPage({ conversationId }: { conversationId: string })
         </div>
       </div>
 
-      {/* Clear Chat Confirmation Dialog */}
-      <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
-        <DialogContent className="glass-panel border-white/10 bg-[#0a0a0f]/95 text-white sm:max-w-sm rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="font-display text-lg flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-red-400" />
-              Clear this conversation?
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-white/50 text-sm py-2">
-            All messages with <span className="text-white font-medium">{character.name}</span> will be permanently deleted. This cannot be undone.
-          </p>
-          <DialogFooter className="gap-2 flex-row justify-end pt-2">
-            <Button
-              variant="ghost"
-              onClick={() => setShowClearDialog(false)}
-              disabled={isClearing}
-              className="text-white/50 hover:text-white hover:bg-white/10"
-              data-testid="button-cancel-clear"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleClearChat}
-              disabled={isClearing}
-              data-testid="button-confirm-clear"
-              className="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 hover:border-red-500/50"
-            >
-              {isClearing ? "Clearing..." : "Delete Messages"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
