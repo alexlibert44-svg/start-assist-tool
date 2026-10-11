@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Sparkles, Trash2 } from "lucide-react";
-import { useCharacter, WELCOME_MESSAGES } from "@/store/use-character";
-import { useMessages, useCreateMessage } from "@/hooks/use-messages";
+import { useCharacter, WELCOME_MESSAGES, CHARACTERS } from "@/store/use-character";
+import { useConversation, addMessageRequest, CONVERSATIONS_KEY, conversationKey } from "@/hooks/use-conversations";
+import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,11 +23,14 @@ type LocalMessage = {
   createdAt: Date | string;
 };
 
-export default function ChatPage() {
-  const character = useCharacter((s) => s.getActiveCharacter());
-  const activeCharacterId = useCharacter((s) => s.activeCharacterId);
-  const { data: serverMessages } = useMessages();
-  const createMessage = useCreateMessage();
+export default function ChatPage({ conversationId }: { conversationId: string }) {
+  const navigate = useNavigate();
+  const { data: convData, error: convError } = useConversation(conversationId);
+  const setActiveCharacter = useCharacter((s) => s.setActiveCharacter);
+  const storeCharacter = useCharacter((s) => s.getActiveCharacter());
+  // The conversation's own character is authoritative once loaded.
+  const character = convData ? CHARACTERS[convData.conversation.characterId] : storeCharacter;
+  const serverMessages = convData?.messages;
   const pendingHandoff = useCharacter((s) => s.pendingHandoff);
   const doHandoff = useCharacter((s) => s.handoff);
   const clearHandoff = useCharacter((s) => s.clearHandoff);
@@ -41,12 +45,13 @@ export default function ChatPage() {
   const [chatMessages, setChatMessages] = useState<LocalMessage[]>([]);
   const [initialized, setInitialized] = useState(false);
   const seededFor = useRef<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Seed from server once when data first arrives
   useEffect(() => {
     if (!initialized && serverMessages !== undefined) {
       if (serverMessages.length > 0) {
-        setChatMessages(serverMessages as LocalMessage[]);
+        setChatMessages(serverMessages.map((m) => ({ ...m, characterId: character.id, createdAt: m.createdAt ?? new Date() })));
       } else {
         setChatMessages([
           {
@@ -59,17 +64,22 @@ export default function ChatPage() {
         ]);
       }
       setInitialized(true);
-      seededFor.current = character.id;
+      seededFor.current = conversationId;
     }
-  }, [serverMessages, initialized, character.id]);
+  }, [serverMessages, initialized, character.id, conversationId]);
 
-  // When character changes, reset and re-seed
+  // Restore the character assigned to this conversation (header, theme, sidebar).
   useEffect(() => {
-    setInitialized(false);
-    seededFor.current = null;
-    setChatMessages([]);
-    setIsAiTyping(false);
-  }, [activeCharacterId]);
+    if (convData) setActiveCharacter(convData.conversation.characterId);
+  }, [convData, setActiveCharacter]);
+
+  const persist = (sender: string, content: string) =>
+    addMessageRequest(conversationId, sender, content)
+      .then(() => queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY }))
+      .catch((err) => {
+        console.error("Failed to save message:", err);
+        setSaveError("Some messages could not be saved. They may be missing after a refresh.");
+      });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -80,12 +90,9 @@ export default function ChatPage() {
   const handleClearChat = async () => {
     setIsClearing(true);
     try {
-      await fetch(
-        `/api/messages/clear?characterId=${encodeURIComponent(character.id)}`,
-        { method: "DELETE" }
-      );
-      // Invalidate server cache
-      queryClient.invalidateQueries({ queryKey: [api.messages.list.path] });
+      const res = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Clear failed (${res.status})`);
+      queryClient.invalidateQueries({ queryKey: conversationKey(conversationId) });
       // Reset local state to welcome message
       setChatMessages([
         {
@@ -115,13 +122,13 @@ export default function ChatPage() {
 
   // Auto-send a request handed over from another character once this chat is loaded
   useEffect(() => {
-    if (initialized && seededFor.current === character.id && pendingHandoff && pendingHandoff.to === character.id && !isAiTyping) {
+    if (initialized && seededFor.current === conversationId && pendingHandoff && pendingHandoff.conversationId === conversationId && !isAiTyping) {
       const h = pendingHandoff;
       clearHandoff();
       void sendText(h.question, h.from);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialized, pendingHandoff, character.id]);
+  }, [initialized, pendingHandoff, conversationId]);
 
   const sendText = async (userText: string, handoffFrom?: string) => {
     setIsAiTyping(true);
@@ -143,14 +150,10 @@ export default function ChatPage() {
       .map((m) => ({ sender: m.sender, content: m.content }));
 
     // 3. Save user message to server in the background (don't block display)
-    createMessage.mutate({
-      content: userText,
-      sender: "user",
-      characterId: character.id,
-    });
+    void persist("user", userText);
 
     let reply = "I'm here. How can I help?";
-    let handoffTarget: { character: string; question: string } | null = null;
+    let handoffTarget: { character: string; question: string; conversationId: string } | null = null;
 
     try {
       // 4. Call AI with timeout
@@ -166,6 +169,7 @@ export default function ChatPage() {
             character: character.id,
             characterId: character.id,
             history: historyForAI,
+            conversationId,
             handoffFrom,
             clientNow: new Date().toString(),
             tzOffsetMinutes: new Date().getTimezoneOffset(),
@@ -180,7 +184,7 @@ export default function ChatPage() {
             queryClient.invalidateQueries({ queryKey: [api.habits.list.path] });
             queryClient.invalidateQueries({ queryKey: [api.profile.get.path] });
           }
-          if (data.handoff?.character && data.handoff?.question) handoffTarget = data.handoff;
+          if (data.handoff?.character && data.handoff?.question && data.handoff?.conversationId) handoffTarget = data.handoff;
           if (data.reply && typeof data.reply === "string" && data.reply.trim()) {
             reply = data.reply;
           } else {
@@ -212,25 +216,41 @@ export default function ChatPage() {
       setChatMessages((prev) => [...prev, aiMsg]);
 
       // 6. Save AI reply to server in the background
-      createMessage.mutate({
-        content: reply,
-        sender: character.id,
-        characterId: character.id,
-      });
+      void persist(character.id, reply);
     } finally {
       setIsAiTyping(false);
     }
     if (handoffTarget) {
       const target = handoffTarget;
-      setTimeout(() => doHandoff(character.id, target.character as typeof character.id, target.question), 700);
+      setTimeout(() => {
+        doHandoff(character.id, target.character as typeof character.id, target.question, target.conversationId);
+        void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
+        void navigate({ to: "/chat/$conversationId", params: { conversationId: target.conversationId } });
+      }, 700);
     }
   };
 
   // Show the clear button only when there are real messages (not just the welcome placeholder)
   const hasMessages = chatMessages.some((m) => m.id !== 0);
 
+  if (convError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-white/50 text-sm">
+        <p>This conversation could not be found. It may have been deleted.</p>
+        <Button variant="ghost" className="text-white/70 hover:bg-white/10" onClick={() => navigate({ to: "/" })}>
+          Open my conversations
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full w-full max-w-4xl mx-auto relative px-4">
+      {saveError && (
+        <div className="absolute top-3 left-4 z-20 text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-1.5">
+          {saveError}
+        </div>
+      )}
       {/* Clear Chat Button — top right, only when there are messages */}
       <AnimatePresence>
         {hasMessages && (

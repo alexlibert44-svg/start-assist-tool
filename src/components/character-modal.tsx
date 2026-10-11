@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CHARACTERS, useCharacter, type CharacterId } from "@/store/use-character";
 import { motion } from "framer-motion";
+import { useOpenCharacter } from "@/hooks/use-conversations";
 
 interface CharacterModalProps {
   open: boolean;
@@ -9,10 +10,13 @@ interface CharacterModalProps {
 
 export function CharacterModal({ open, onOpenChange }: CharacterModalProps) {
   const { activeCharacterId, setActiveCharacter } = useCharacter();
+  const openCharacter = useOpenCharacter();
 
+  // Selecting a guide opens their most recent conversation (or starts one).
   const handleSelect = (id: CharacterId) => {
     setActiveCharacter(id);
     onOpenChange(false);
+    void openCharacter(id).catch((e) => console.error("Failed to open conversation:", e));
   };
 
   return (

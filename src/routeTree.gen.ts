@@ -17,6 +17,7 @@ import { Route as ApiConversationsRouteImport } from './routes/api/conversations
 import { Route as ApiHabitsRouteImport } from './routes/api/habits'
 import { Route as ApiMessagesRouteImport } from './routes/api/messages'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
+import { Route as ChatConversationIdRouteImport } from './routes/chat.$conversationId'
 import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations.$id'
 import { Route as ApiHabitsIdRouteImport } from './routes/api/habits.$id'
 import { Route as ApiMessagesClearRouteImport } from './routes/api/messages.clear'
@@ -62,6 +63,11 @@ const ApiProfileRoute = ApiProfileRouteImport.update({
   path: '/api/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatConversationIdRoute = ChatConversationIdRouteImport.update({
+  id: '/chat/$conversationId',
+  path: '/chat/$conversationId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiConversationsIdRoute = ApiConversationsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
+  '/chat/$conversationId': typeof ChatConversationIdRoute
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
+  '/chat/$conversationId': typeof ChatConversationIdRoute
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
+  '/chat/$conversationId': typeof ChatConversationIdRoute
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/api/habits'
     | '/api/messages'
     | '/api/profile'
+    | '/chat/$conversationId'
     | '/api/conversations/$id'
     | '/api/habits/$id'
     | '/api/messages/clear'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/api/habits'
     | '/api/messages'
     | '/api/profile'
+    | '/chat/$conversationId'
     | '/api/conversations/$id'
     | '/api/habits/$id'
     | '/api/messages/clear'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/api/habits'
     | '/api/messages'
     | '/api/profile'
+    | '/chat/$conversationId'
     | '/api/conversations/$id'
     | '/api/habits/$id'
     | '/api/messages/clear'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   ApiHabitsRoute: typeof ApiHabitsRouteWithChildren
   ApiMessagesRoute: typeof ApiMessagesRouteWithChildren
   ApiProfileRoute: typeof ApiProfileRoute
+  ChatConversationIdRoute: typeof ChatConversationIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -239,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/api/profile'
       fullPath: '/api/profile'
       preLoaderRoute: typeof ApiProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat/$conversationId': {
+      id: '/chat/$conversationId'
+      path: '/chat/$conversationId'
+      fullPath: '/chat/$conversationId'
+      preLoaderRoute: typeof ChatConversationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/conversations/$id': {
@@ -327,6 +347,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHabitsRoute: ApiHabitsRouteWithChildren,
   ApiMessagesRoute: ApiMessagesRouteWithChildren,
   ApiProfileRoute: ApiProfileRoute,
+  ChatConversationIdRoute: ChatConversationIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
