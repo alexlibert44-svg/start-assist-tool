@@ -1,12 +1,11 @@
 import { motion } from "framer-motion";
 import { Target, Shield, CalendarCheck, ListChecks } from "lucide-react";
 import { useCharacter } from "@/store/use-character";
-import { useHabits, useStats } from "@/hooks/use-habits";
+import { useStats } from "@/hooks/use-habits";
 
 export default function ProgressPage() {
   const character = useCharacter((s) => s.getActiveCharacter());
   const { data: stats, isLoading, error } = useStats();
-  const { data: habits, isLoading: habitsLoading, error: habitsError } = useHabits();
 
   if (isLoading) {
     return (
@@ -31,8 +30,6 @@ export default function ProgressPage() {
   const score = stats.points;
   const rate = stats.dailyCompletionRate;
   const days = stats.consecutiveDays;
-  const dailyHabits = (habits ?? []).filter((habit) => habit.kind !== "task");
-  const completedHabits = dailyHabits.filter((habit) => habit.completed).length;
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-8 max-w-5xl mx-auto w-full">
@@ -141,8 +138,8 @@ export default function ProgressPage() {
           },
           {
             label: "Completed Habits",
-            value: habitsLoading || habitsError ? "—" : `${completedHabits}/${dailyHabits.length}`,
-            sub: habitsError ? "Could not load habits" : habitsLoading ? "Loading habits" : "completed today",
+            value: `${stats.completedToday}/${stats.dueToday}`,
+            sub: stats.dueToday ? "completed today" : "No activities scheduled",
             icon: ListChecks,
             color: "text-primary",
             bg: "bg-primary/10",
