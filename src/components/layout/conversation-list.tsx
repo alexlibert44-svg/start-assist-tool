@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { useConversations, useDeleteConversation, useRenameConversation } from "@/hooks/use-conversations";
+import { useCharacterConversations, useDeleteConversation, useRenameConversation } from "@/hooks/use-conversations";
 import { CHARACTERS } from "@/store/use-character";
-import type { Conversation } from "@/shared/conversations";
+import type { Conversation, ConversationCharacter } from "@/shared/conversations";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,8 +15,8 @@ import { Button } from "@/components/ui/button";
 
 const COLLAPSED_COUNT = 5;
 
-export function ConversationList({ activePath }: { activePath: string }) {
-  const { data: list, isLoading, error } = useConversations();
+export function ConversationList({ activePath, characterId }: { activePath: string; characterId: ConversationCharacter }) {
+  const { data: list, isLoading, error } = useCharacterConversations(characterId);
   const rename = useRenameConversation();
   const remove = useDeleteConversation();
   const navigate = useNavigate();
@@ -25,6 +25,8 @@ export function ConversationList({ activePath }: { activePath: string }) {
   const [title, setTitle] = useState("");
   const [deleting, setDeleting] = useState<Conversation | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Collapse again when switching to another character's list.
+  useEffect(() => setExpanded(false), [characterId]);
 
   const all = list ?? [];
   const shown = expanded ? all : all.slice(0, COLLAPSED_COUNT);
@@ -55,11 +57,12 @@ export function ConversationList({ activePath }: { activePath: string }) {
 
   return (
     <div className="min-h-0 flex flex-col mt-1">
-      <div className={`min-h-0 ${expanded ? "overflow-y-auto" : ""} pr-1`} data-testid="conversation-list">
+      <div className="min-h-0 max-h-[50vh] overflow-y-auto pr-1" data-testid="conversation-list">
         {isLoading && <p className="px-2 py-2 text-xs text-white/30">Loading...</p>}
         {error && <p className="px-2 py-2 text-xs text-red-300">Could not load conversations.</p>}
         {shown.map((c) => {
-          const ch = CHARACTERS[c.characterId] ?? CHARACTERS.Larry;
+          const ch = CHARACTERS[c.characterId];
+          if (!ch) return null;
           const active = activePath === `/chat/${c.id}`;
           return (
             <div
@@ -102,6 +105,7 @@ export function ConversationList({ activePath }: { activePath: string }) {
       {all.length > COLLAPSED_COUNT && (
         <button
           onClick={() => setExpanded((v) => !v)}
+          type="button"
           className="mt-1 px-2 py-1.5 text-xs text-white/40 hover:text-white text-left shrink-0"
           data-testid="button-toggle-conversations"
         >

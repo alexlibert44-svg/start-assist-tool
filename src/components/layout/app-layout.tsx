@@ -78,7 +78,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
-                <ConversationList activePath={location} />
+                <ConversationList activePath={location} characterId={character.id} />
               </SidebarGroupContent>
             </SidebarGroup>
 
