@@ -17,8 +17,10 @@ const SCOPE = `Team scopes:
 const CHARACTER_SYSTEM_PROMPTS: Record<string, string> = {
   Larry: `You are Larry, the main AI agent and coordinator — the user's ideal disciplined self. Calm, firm, concise, professional, strategic. No hype, no empty motivation. Max 2-3 sentences.
 You manage the user's REAL tasks with tools. Never invent tasks, points or progress — call list_tasks / get_progress to read real data. Never claim an action succeeded unless the tool result says ok.
-- To create a task call create_task immediately (resolve relative dates like "tomorrow at 9 AM" using the user's current local time and UTC offset given below; output due_at as ISO 8601 with offset). Set linked_character when the task is an activity a specialist runs in-app (learning/study -> Sensei, workout/exercise/training -> Hassan, reflection/mindset exercise -> Dr Neo); those complete automatically when the session is done. Ask one short question only if the task itself is unclear.
-- Mark a general task complete with complete_task ONLY when the user explicitly says they finished it. If unsure, ask them to confirm.
+- Items are either kind "task" (one-off, optional deadline) or kind "habit" (daily, resets each local day). Each verified completion earns 5 points (a habit at most once per day). Points accumulate and never reset. There are no levels.
+- Create a task or habit ONLY when the user clearly asks for one. To create it call create_task immediately (resolve relative dates like "tomorrow at 9 AM" using the user's current local time and UTC offset given below; output due_at as ISO 8601 with offset). Set linked_character when the task is an activity a specialist runs in-app (learning/study -> Sensei, workout/exercise/training -> Hassan, reflection/mindset exercise -> Dr Neo); those complete automatically when the session is done. Ask one short question only if the task itself is unclear.
+- Mark an item complete with complete_task ONLY when the user explicitly says they finished it. Discussing an activity is not completion — if unsure, say it is not confirmed and ask them to confirm.
+- For progress questions call get_progress and list_tasks; report statuses exactly as returned (done, done_today, open, overdue, not_yet_due). Never invent streaks, points or statistics.
 - If a request belongs entirely to one specialist, call route_to_specialist with the user's original question verbatim — do not answer it yourself. Keep coordinating requests spanning several areas yourself (e.g. create tasks, then route the main question).
 - If something is outside every scope, say so honestly.
 ${SCOPE}`,
@@ -77,27 +79,33 @@ function toolsFor(charId: string): Tool[] {
   }
   return [
     route,
-    fn("create_task", "Create and save a task in the user's task list.", {
+    fn("create_task", "Create and save a task or daily habit in the user's tracker.", {
       name: { type: "string" },
+      kind: { type: "string", enum: ["task", "habit"], description: "task = one-off; habit = repeats daily. Default task." },
       due_at: { type: "string", description: "ISO 8601 datetime with offset, or omit if no deadline" },
       linked_character: { type: "string", enum: [...SPECIALISTS], description: "Specialist whose in-app session completes this task" },
     }, ["name"]),
-    fn("list_tasks", "Read the user's real saved tasks.", { status: { type: "string", enum: ["all", "open", "done"] } }),
+    fn("list_tasks", "Read the user's real saved tasks and habits with today's status.", { status: { type: "string", enum: ["all", "open", "done"] } }),
     fn("update_task", "Edit a task's name or deadline.", {
       task_id: { type: "integer" }, name: { type: "string" }, due_at: { type: "string" },
     }, ["task_id"]),
-    fn("complete_task", "Mark a task complete after the user explicitly confirmed finishing it. Awards points once.", { task_id: { type: "integer" } }, ["task_id"]),
+    fn("complete_task", "Mark a task (or today's habit) complete after the user explicitly confirmed finishing it. Awards 5 points once.", { task_id: { type: "integer" } }, ["task_id"]),
     fn("delete_task", "Delete a task.", { task_id: { type: "integer" } }, ["task_id"]),
-    fn("get_progress", "Read the user's real Discipline Score, level and task completion stats."),
+    fn("get_progress", "Read the user's real points balance, consecutive active days and today's completion rate."),
   ];
 }
 
-const taskView = (h: Habit) => ({
-  id: h.id, name: h.name, completed: !!h.completed, due_at: h.dueAt, linked_character: h.linkedCharacter, streak: h.streak ?? 0,
-});
+const taskView = (h: Habit) => {
+  const habit = h.kind !== "task";
+  const due = h.dueAt ? new Date(h.dueAt).getTime() : null;
+  const status = habit
+    ? (h.completed ? "done_today" : "open_today")
+    : h.completed ? "done" : due === null ? "open" : due < Date.now() ? "overdue" : "not_yet_due";
+  return { id: h.id, kind: habit ? "habit" : "task", name: h.name, status, completed: !!h.completed, due_at: h.dueAt, completed_at: h.completedAt, linked_character: h.linkedCharacter };
+};
 
 type Ctx = {
-  charId: string; scope: OwnerScope; conversationId: string | null;
+  charId: string; tz: number; scope: OwnerScope; conversationId: string | null;
   handoff: { character: string; question: string; conversationId: string; reused: boolean } | null; changed: boolean;
 };
 
@@ -132,14 +140,15 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): P
         const linked = args["linked_character"] ? resolveCharacterId(String(args["linked_character"])) : null;
         const t = await storage.createHabit({
           name: nm, completed: false, streak: 0, dueAt: due ? due.toISOString() : null,
+          kind: args["kind"] === "habit" ? "habit" : "task",
           linkedCharacter: linked && linked !== "Larry" ? linked : null,
-        });
+        }, ctx.tz);
         ctx.changed = true;
         return { ok: true, task: taskView(t) };
       }
       case "list_tasks": {
         const s = String(args["status"] ?? "all");
-        const all = (await storage.getHabits()).map(taskView);
+        const all = (await storage.getHabits(ctx.tz)).map(taskView);
         return { ok: true, tasks: s === "open" ? all.filter((t) => !t.completed) : s === "done" ? all.filter((t) => t.completed) : all };
       }
       case "update_task": {
@@ -151,20 +160,21 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): P
           if (isNaN(d.getTime())) return { ok: false, error: "invalid due_at" };
           u["dueAt"] = d.toISOString();
         }
-        const t = await storage.updateHabit(id, u);
+        const t = await storage.updateHabit(id, u, ctx.tz);
         if (!t) return { ok: false, error: "task not found" };
         ctx.changed = true;
         return { ok: true, task: taskView(t) };
       }
       case "complete_task": {
         const id = Number(args["task_id"]);
-        const before = await storage.getHabit(id);
+        const before = await storage.getHabit(id, ctx.tz);
         if (!before) return { ok: false, error: "task not found" };
         if (before.completed) return { ok: true, already_completed: true, points_awarded_now: 0 };
-        const t = await storage.setCompletion(id, true);
+        const p0 = (await storage.getProfile())?.xp ?? 0;
+        const t = await storage.setCompletion(id, true, ctx.tz);
         ctx.changed = true;
-        const prof = await storage.getProfile();
-        return { ok: !!t?.completed, task: t && taskView(t), points_awarded_now: 10, score: prof?.xp };
+        const p1 = (await storage.getProfile())?.xp ?? 0;
+        return { ok: !!t?.completed, task: t && taskView(t), points_awarded_now: p1 - p0, points: p1 };
       }
       case "delete_task": {
         const ok = await storage.deleteHabit(Number(args["task_id"]));
@@ -172,19 +182,22 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): P
         return ok ? { ok: true } : { ok: false, error: "task not found" };
       }
       case "get_progress": {
-        const [prof, tasks] = await Promise.all([storage.getProfile(), storage.getHabits()]);
+        const st = await storage.getStats(ctx.tz);
         return {
-          ok: true, discipline_score: prof?.xp ?? 0, level: prof?.level ?? 1,
-          tasks_total: tasks.length, tasks_done: tasks.filter((t) => t.completed).length,
+          ok: true, points: st.points, consecutive_active_days: st.consecutiveDays, local_date: st.today,
+          due_today: st.dueToday, completed_today: st.completedToday,
+          daily_completion_rate_percent: st.dailyCompletionRate ?? "no activities scheduled today",
         };
       }
       case "complete_linked_activity": {
-        const open = (await storage.getHabits()).filter((h) => !h.completed && h.linkedCharacter === ctx.charId);
+        const open = (await storage.getHabits(ctx.tz)).filter((h) => !h.completed && h.linkedCharacter === ctx.charId);
         const target = args["task_id"] ? open.find((h) => h.id === Number(args["task_id"])) : open[0];
         if (!target) return { ok: false, error: "no open task linked to you" };
-        const t = await storage.setCompletion(target.id, true);
+        const p0 = (await storage.getProfile())?.xp ?? 0;
+        const t = await storage.setCompletion(target.id, true, ctx.tz);
         ctx.changed = true;
-        return { ok: !!t?.completed, task: t && taskView(t), points_awarded_now: 10 };
+        const p1 = (await storage.getProfile())?.xp ?? 0;
+        return { ok: !!t?.completed, task: t && taskView(t), points_awarded_now: p1 - p0 };
       }
     }
     return { ok: false, error: "unknown tool" };
@@ -258,7 +271,7 @@ export const Route = createFileRoute("/api/chat")({
           }
           const charId = resolveCharacterId(character || characterId);
           const scope = ownerFromRequest(request);
-          const ctx: Ctx = { charId, scope, conversationId: isUuid(conversationId) ? conversationId : null, handoff: null, changed: false };
+          const ctx: Ctx = { charId, tz: typeof tzOffsetMinutes === "number" ? tzOffsetMinutes : 0, scope, conversationId: isUuid(conversationId) ? conversationId : null, handoff: null, changed: false };
 
           let system = CHARACTER_SYSTEM_PROMPTS[charId] + "\n\nAlways reply in the same language as the user's latest message (e.g. English question -> English answer), regardless of earlier messages or the user's location.";
           const off = typeof tzOffsetMinutes === "number" ? -tzOffsetMinutes : 0;
