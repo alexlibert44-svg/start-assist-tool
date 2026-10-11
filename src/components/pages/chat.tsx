@@ -183,6 +183,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
           if (data.dataChanged) {
             queryClient.invalidateQueries({ queryKey: [api.habits.list.path] });
             queryClient.invalidateQueries({ queryKey: [api.profile.get.path] });
+            queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
           }
           if (data.handoff?.character && data.handoff?.question && data.handoff?.conversationId) handoffTarget = data.handoff;
           if (data.reply && typeof data.reply === "string" && data.reply.trim()) {
