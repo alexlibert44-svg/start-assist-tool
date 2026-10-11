@@ -59,11 +59,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <Sidebar variant="sidebar" className="border-r border-white/5 bg-black/40 backdrop-blur-xl z-20">
           <SidebarContent className="overflow-hidden">
             {/* Conversations section */}
-            <SidebarGroup className="pt-4 min-h-0 flex-1 flex flex-col">
+            <SidebarGroup className="pt-4 min-h-0 flex flex-col">
               <SidebarGroupLabel className="text-white/40 font-medium tracking-wider text-xs uppercase">
                 Conversations
               </SidebarGroupLabel>
-              <SidebarGroupContent className="min-h-0 flex-1 flex flex-col">
+              <SidebarGroupContent className="min-h-0 flex flex-col">
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
