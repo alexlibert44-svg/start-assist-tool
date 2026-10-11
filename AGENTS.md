@@ -12,7 +12,8 @@
 - The app's JSON API lives in TanStack server routes under src/routes/api/* at the original Express paths, so the ported client hooks call them unchanged.
 - Database access goes through src/server/storage.server.ts (admin client, RLS locked) because the original app is single-user with no sign-in.
 - tsconfig strict extras (exactOptionalPropertyTypes, noUncheckedIndexedAccess, noPropertyAccessFromIndexSignature) are off so the imported source compiles without being rewritten.
-- Tasks reuse the habits table (due_at, linked_character, points_awarded); all completion goes through storage.setCompletion, whose conditional update on points_awarded guarantees points are awarded once.
+- Tasks and daily habits share the habits table (kind = 'task' | 'habit'); every completion goes through storage.setCompletion, which records a row in habit_completions (unique per habit per local date) so points are awarded once and history drives consecutive days and the daily rate.
+- "Today" is computed server-side from the browser's timezone offset (?tz= / tzOffsetMinutes), so day rollover needs no scheduled reset job.
 - AI agent logic (tools, routing, character scopes) lives in src/routes/api/chat.ts; handoffs return `handoff` and the chat page auto-sends it to the target character via the character store.
 - Conversations go through the ConversationRepository interface (src/shared/conversations.ts); the active adapter is exported from src/server/conversations.server.ts so the backend can be swapped (see docs/SUPABASE_SETUP.md) without touching UI or routes.
 - Each chat lives at /chat/$conversationId and its character comes from the conversation row; "/" only redirects to the latest conversation.
