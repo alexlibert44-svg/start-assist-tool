@@ -31,7 +31,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     colorName: 'purple',
     theme: {
       gradient: 'from-purple-600 to-indigo-600',
-      chatBubble: 'bg-gradient-to-br from-purple-600/90 to-indigo-600/90',
+      chatBubble: 'bg-gradient-to-br from-purple-600/30 to-indigo-600/30 backdrop-blur-xl',
       glow: 'shadow-purple-500/25',
       text: 'text-purple-400',
       border: 'border-purple-500/30',
@@ -44,7 +44,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     colorName: 'sky blue',
     theme: {
       gradient: 'from-sky-400 to-blue-600',
-      chatBubble: 'bg-gradient-to-br from-sky-500/90 to-blue-600/90',
+      chatBubble: 'bg-gradient-to-br from-sky-500/30 to-blue-600/30 backdrop-blur-xl',
       glow: 'shadow-sky-500/25',
       text: 'text-sky-400',
       border: 'border-sky-500/30',
@@ -57,7 +57,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     colorName: 'deep navy blue',
     theme: {
       gradient: 'from-blue-800 to-indigo-900',
-      chatBubble: 'bg-gradient-to-br from-blue-700/90 to-indigo-800/90',
+      chatBubble: 'bg-gradient-to-br from-blue-700/30 to-indigo-800/30 backdrop-blur-xl',
       glow: 'shadow-blue-600/25',
       text: 'text-blue-400',
       border: 'border-blue-700/30',
@@ -70,7 +70,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     colorName: 'green',
     theme: {
       gradient: 'from-emerald-400 to-green-600',
-      chatBubble: 'bg-gradient-to-br from-emerald-500/90 to-green-600/90',
+      chatBubble: 'bg-gradient-to-br from-emerald-500/30 to-green-600/30 backdrop-blur-xl',
       glow: 'shadow-emerald-500/25',
       text: 'text-emerald-400',
       border: 'border-emerald-500/30',
