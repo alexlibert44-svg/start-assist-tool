@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { storage } from "@/server/storage.server";
 import type { Habit } from "@/shared/schema";
+import { conversations, ownerFromRequest } from "@/server/conversations.server";
+import { isUuid, type ConversationCharacter, type OwnerScope } from "@/shared/conversations";
 
 const MODEL = "google/gemini-3-flash-preview";
 const SPECIALISTS = ["Sensei", "Dr Neo", "Hassan"] as const;
@@ -64,6 +66,7 @@ function toolsFor(charId: string): Tool[] {
     {
       character: { type: "string", enum: ALL.filter((c) => c !== charId) },
       question: { type: "string", description: "The user's original request, verbatim, plus any needed context" },
+      conversation_id: { type: "string", description: "Id of an EXISTING conversation with that character whose topic matches this request (from the list provided). Omit to start a new conversation for an unrelated topic." },
     },
     ["character", "question"],
   );
@@ -93,7 +96,10 @@ const taskView = (h: Habit) => ({
   id: h.id, name: h.name, completed: !!h.completed, due_at: h.dueAt, linked_character: h.linkedCharacter, streak: h.streak ?? 0,
 });
 
-type Ctx = { charId: string; handoff: { character: string; question: string } | null; changed: boolean };
+type Ctx = {
+  charId: string; scope: OwnerScope; conversationId: string | null;
+  handoff: { character: string; question: string; conversationId: string; reused: boolean } | null; changed: boolean;
+};
 
 async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): Promise<unknown> {
   try {
@@ -102,7 +108,20 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): P
         const character = resolveCharacterId(String(args["character"] ?? ""));
         const question = String(args["question"] ?? "");
         if (character === ctx.charId || !question) return { ok: false, error: "invalid handoff" };
-        ctx.handoff = { character, question };
+        // Reuse a matching conversation with the target character when given and valid; otherwise create one.
+        const wanted = args["conversation_id"];
+        let target = isUuid(wanted) ? await conversations.getConversation(ctx.scope, wanted) : undefined;
+        if (target && target.characterId !== character) target = undefined;
+        const reused = !!target;
+        if (!target) {
+          const t = question.replace(/\s+/g, " ").trim();
+          target = await conversations.createConversation(ctx.scope, {
+            characterId: character as ConversationCharacter,
+            title: t.length > 48 ? `${t.slice(0, 45)}...` : t,
+            metadata: ctx.conversationId ? { handedOffFrom: ctx.conversationId } : {},
+          });
+        }
+        ctx.handoff = { character, question, conversationId: target.id, reused };
         return { ok: true, note: `The app is opening ${character}'s chat now. Write one short handoff line only.` };
       }
       case "create_task": {
@@ -230,15 +249,16 @@ export const Route = createFileRoute("/api/chat")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const { message, character, characterId, history, handoffFrom, clientNow, tzOffsetMinutes } = (await request.json()) as {
-            message?: unknown; character?: string; characterId?: string; history?: unknown;
+          const { message, character, characterId, history, handoffFrom, clientNow, tzOffsetMinutes, conversationId } = (await request.json()) as {
+            message?: unknown; character?: string; characterId?: string; history?: unknown; conversationId?: string;
             handoffFrom?: string; clientNow?: string; tzOffsetMinutes?: number;
           };
           if (!message || typeof message !== "string" || !message.trim()) {
             return Response.json({ reply: "No message provided." }, { status: 400 });
           }
           const charId = resolveCharacterId(character || characterId);
-          const ctx: Ctx = { charId, handoff: null, changed: false };
+          const scope = ownerFromRequest(request);
+          const ctx: Ctx = { charId, scope, conversationId: isUuid(conversationId) ? conversationId : null, handoff: null, changed: false };
 
           let system = CHARACTER_SYSTEM_PROMPTS[charId] + "\n\nAlways reply in the same language as the user's latest message (e.g. English question -> English answer), regardless of earlier messages or the user's location.";
           const off = typeof tzOffsetMinutes === "number" ? -tzOffsetMinutes : 0;
@@ -257,6 +277,14 @@ export const Route = createFileRoute("/api/chat")({
             }
           } catch (ctxErr) {
             console.error("Context injection error (non-fatal):", ctxErr);
+          }
+          try {
+            const others = (await conversations.listConversations(scope, { limit: 30 }))
+              .filter((c) => c.characterId !== charId).slice(0, 15)
+              .map((c) => ({ id: c.id, character: c.characterId, title: c.title }));
+            if (others.length) system += `\n\nExisting conversations with other team members (when routing, pass conversation_id of one whose topic clearly matches; omit it for a new topic):\n${JSON.stringify(others)}`;
+          } catch (convErr) {
+            console.error("Conversation context error (non-fatal):", convErr);
           }
           if (handoffFrom) {
             system += `\n\n${resolveCharacterId(handoffFrom)} just handed this user's request to you. Answer it immediately and fully. Do not greet at length or ask what they need.`;
