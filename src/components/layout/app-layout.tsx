@@ -14,10 +14,11 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { MessageSquarePlus, CheckCircle2, TrendingUp, Users, Trash2 } from "lucide-react";
+import { MessageSquarePlus, CheckCircle2, TrendingUp, Users } from "lucide-react";
+import { useOpenCharacter } from "@/hooks/use-conversations";
+import { ConversationList } from "@/components/layout/conversation-list";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { queryClient } from "@/lib/queryClient";
-import { api } from "@/shared/routes";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const location = useRouterState({ select: (s) => s.location.pathname });
@@ -29,30 +30,20 @@ export function AppLayout({ children }: { children: ReactNode }) {
     { title: "Points / Progress", url: "/progress", icon: TrendingUp },
   ];
 
-  const [isDeleting, setIsDeleting] = useState(false);
+  const openCharacter = useOpenCharacter();
+  const [creating, setCreating] = useState(false);
 
+  // New Conversation: always a new conversation for the current guide; older ones stay in the list.
   const handleNewConversation = async () => {
+    if (creating) return;
+    setCreating(true);
     try {
-      await fetch(`/api/messages/clear?characterId=${encodeURIComponent(character.id)}`, { method: "DELETE" });
-      window.location.href = "/";
+      await openCharacter(character.id, { forceNew: true });
     } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleDeleteConversation = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isDeleting) return;
-    setIsDeleting(true);
-    try {
-      await fetch(`/api/messages/clear?characterId=${encodeURIComponent(character.id)}`, { method: "DELETE" });
-      queryClient.invalidateQueries({ queryKey: [api.messages.list.path] });
-      window.location.href = "/";
-    } catch (err) {
-      console.error("Failed to delete conversation:", err);
+      console.error("Failed to create conversation:", e);
+      toast({ title: "Could not start a new conversation", description: "Please try again.", variant: "destructive" });
     } finally {
-      setIsDeleting(false);
+      setCreating(false);
     }
   };
 
@@ -66,17 +57,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
         />
 
         <Sidebar variant="sidebar" className="border-r border-white/5 bg-black/40 backdrop-blur-xl z-20">
-          <SidebarContent>
+          <SidebarContent className="overflow-hidden">
             {/* Conversations section */}
-            <SidebarGroup className="pt-4">
+            <SidebarGroup className="pt-4 min-h-0 flex flex-col">
               <SidebarGroupLabel className="text-white/40 font-medium tracking-wider text-xs uppercase">
                 Conversations
               </SidebarGroupLabel>
-              <SidebarGroupContent>
+              <SidebarGroupContent className="min-h-0 flex flex-col">
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       onClick={handleNewConversation}
+                      disabled={creating}
                       size="lg"
                       className="bg-white/5 hover:bg-white/10 font-medium w-full justify-start"
                       data-testid="button-new-conversation"
@@ -85,36 +77,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
                       <span>New Conversation</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <div className="group/conv flex items-center w-full">
-                      <SidebarMenuButton
-                        asChild
-                        isActive={location === "/"}
-                        className={`flex-1 hover:bg-white/5 hover:text-white ${location === "/" ? "bg-white/10 text-white" : "text-white/60"}`}
-                      >
-                        <Link to="/">
-                          <span className={`w-2 h-2 rounded-full bg-gradient-to-br ${character.theme.gradient} shrink-0`} />
-                          <span>{character.name}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                      <button
-                        onClick={handleDeleteConversation}
-                        disabled={isDeleting}
-                        data-testid="button-delete-conversation"
-                        title="Delete conversation"
-                        className="opacity-0 group-hover/conv:opacity-100 ml-1 p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 shrink-0"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </SidebarMenuItem>
                 </SidebarMenu>
+                <ConversationList activePath={location} />
               </SidebarGroupContent>
             </SidebarGroup>
 
             {/* Larry-only productivity nav */}
             {character.id === "Larry" && (
-              <SidebarGroup>
+              <SidebarGroup className="shrink-0">
                 <SidebarGroupLabel className="text-white/40 font-medium tracking-wider text-xs uppercase">
                   Productivity
                 </SidebarGroupLabel>

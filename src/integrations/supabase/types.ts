@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      conversations: {
+        Row: {
+          character_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          character_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          character_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       habits: {
         Row: {
           completed: boolean | null
@@ -54,25 +84,39 @@ export type Database = {
         Row: {
           character_id: string
           content: string
+          conversation_id: string | null
           created_at: string | null
           id: number
+          metadata: Json
           sender: string
         }
         Insert: {
           character_id: string
           content: string
+          conversation_id?: string | null
           created_at?: string | null
           id?: number
+          metadata?: Json
           sender: string
         }
         Update: {
           character_id?: string
           content?: string
+          conversation_id?: string | null
           created_at?: string | null
           id?: number
+          metadata?: Json
           sender?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profile: {
         Row: {
