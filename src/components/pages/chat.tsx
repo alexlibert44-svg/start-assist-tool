@@ -231,23 +231,26 @@ export default function ChatPage({ conversationId }: { conversationId: string })
                 key={msg.id}
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                className={`flex flex-col ${isUser ? "ml-auto items-end max-w-[85%]" : "mr-auto items-start max-w-[92%]"}`}
+                className={`flex ${isUser ? "ml-auto justify-end max-w-[85%]" : "mr-auto items-start gap-3 max-w-[92%]"}`}
               >
-                {!isUser && (
-                  <span
-                    className={`text-xs font-semibold mb-1 ml-1 tracking-wider ${character.theme.text} opacity-80 uppercase`}
+                {!isUser && <img src={character.image} alt="" className={`mt-5 h-10 w-10 shrink-0 rounded-full object-cover object-top border ${character.theme.border} shadow-lg ${character.theme.glow}`} />}
+                <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+                  {!isUser && (
+                    <span
+                      className={`text-xs font-semibold mb-1 ml-1 tracking-wider ${character.theme.text} opacity-80 uppercase`}
+                    >
+                      {character.name}
+                    </span>
+                  )}
+                  <div
+                    className={`p-5 sm:p-6 rounded-2xl leading-relaxed ${
+                      isUser
+                        ? "bg-white/10 backdrop-blur-md border border-white/5 text-white shadow-lg rounded-tr-sm"
+                        : `${character.theme.chatBubble} text-white rounded-tl-sm shadow-xl ${character.theme.glow} border ${character.theme.border} [text-shadow:0_1px_3px_rgba(0,0,0,0.55)]`
+                    }`}
                   >
-                    {character.name}
-                  </span>
-                )}
-                <div
-                  className={`p-5 sm:p-6 rounded-2xl leading-relaxed ${
-                    isUser
-                      ? "bg-white/10 backdrop-blur-md border border-white/5 text-white shadow-lg rounded-tr-sm"
-                      : `${character.theme.chatBubble} text-white rounded-tl-sm shadow-xl ${character.theme.glow} border ${character.theme.border} [text-shadow:0_1px_3px_rgba(0,0,0,0.55)]`
-                  }`}
-                >
-                  <p className="text-[15px] sm:text-base whitespace-pre-line">{msg.content.replace(/\*\*/g, "")}</p>
+                    <p className="text-[15px] sm:text-base whitespace-pre-line">{msg.content.replace(/\*\*/g, "")}</p>
+                  </div>
                 </div>
               </motion.div>
             );

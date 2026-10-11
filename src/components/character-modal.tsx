@@ -50,8 +50,12 @@ export function CharacterModal({ open, onOpenChange }: CharacterModalProps) {
                   <div className={`absolute inset-0 bg-gradient-to-r ${character.theme.gradient} opacity-10`} />
                 )}
                 
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shrink-0 bg-gradient-to-br ${character.theme.gradient} shadow-lg`}>
-                  {character.name.charAt(0)}
+                <div className={`w-14 h-14 rounded-full shrink-0 overflow-hidden bg-gradient-to-br ${character.theme.gradient} shadow-lg border ${character.theme.border}`}>
+                  <img
+                    src={character.image}
+                    alt={character.name}
+                    className="w-full h-full object-cover object-top"
+                  />
                 </div>
                 
                 <div className="flex-1 relative z-10">
