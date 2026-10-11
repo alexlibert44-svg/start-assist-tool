@@ -97,11 +97,11 @@ export const cloudRepository: ConversationRepository = {
       conversation_id: conversationId, character_id: conv.characterId, sender: input.sender,
       content: input.content, metadata: (input.metadata ?? {}) as never,
     }).select().single());
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const patch: { updated_at: string; title?: string } = { updated_at: new Date().toISOString() };
     // Auto-title from the first user message while the title is still the default.
     if (input.sender === "user" && conv.title === DEFAULT_CONVERSATION_TITLE) {
       const t = input.content.replace(/\s+/g, " ").trim();
-      patch["title"] = t.length > 48 ? `${t.slice(0, 45)}...` : t;
+      patch.title = t.length > 48 ? `${t.slice(0, 45)}...` : t;
     }
     check(await c.from("conversations").update(patch).eq("id", conversationId).select());
     return toMsg(row as MsgRow);
