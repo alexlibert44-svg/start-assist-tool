@@ -217,15 +217,10 @@ export default function HabitsPage() {
                           {habit.linkedCharacter && `Auto-completes with ${habit.linkedCharacter}`}
                         </p>
                       )}
-                      {isDone && (
-                        <p className={`text-xs ${character.theme.text} opacity-80 mt-0.5`}>
-                          +{SCORE_PER_HABIT} points earned
-                        </p>
-                      )}
                     </div>
                   </div>
 
-                  {/* Right: streak + done tag + three-dots menu */}
+                  {/* Right: done tag + three-dots menu */}
                   <div
                     className="flex items-center gap-2 shrink-0 ml-3"
                     onClick={(e) => e.stopPropagation()}
