@@ -32,12 +32,12 @@ function profToRow(u: Partial<InsertProfile>) {
 }
 
 type HabitRow = {
-  id: number; name: string; completed: boolean | null; streak: number | null; due_at: string | null;
+  id: number; name: string; completed: boolean | null; streak: number | null; due_at: string | null; kind: string;
   linked_character: string | null; points_awarded: boolean; completed_at: string | null; created_at: string | null;
 };
 const toHabit = (r: HabitRow) =>
   ({
-    id: r.id, name: r.name, completed: r.completed, streak: r.streak, dueAt: r.due_at,
+    id: r.id, name: r.name, completed: r.completed, streak: r.streak, dueAt: r.due_at, kind: r.kind,
     linkedCharacter: r.linked_character, pointsAwarded: r.points_awarded, completedAt: r.completed_at, createdAt: r.created_at,
   }) as Habit;
 function habitToRow(u: Partial<InsertHabit>) {
@@ -47,13 +47,14 @@ function habitToRow(u: Partial<InsertHabit>) {
   if (u.streak !== undefined) row["streak"] = u.streak;
   if (u.dueAt !== undefined) row["due_at"] = u.dueAt;
   if (u.linkedCharacter !== undefined) row["linked_character"] = u.linkedCharacter;
+  if (u.kind !== undefined) row["kind"] = u.kind === "task" ? "task" : "habit";
   return row;
 }
 
 async function adjustScore(delta: number) {
   const prof = await storage.getProfile();
   const newScore = Math.max(0, (prof?.xp ?? 0) + delta);
-  await storage.updateProfile({ xp: newScore, level: calcLevel(newScore) });
+  await storage.updateProfile({ xp: newScore });
 }
 
 function check<T>(res: { data: T; error: { message: string } | null }): T {
@@ -79,25 +80,29 @@ export const storage = {
     const c = await db();
     check(await c.from("messages").delete().eq("character_id", characterId));
   },
-  async getHabits(): Promise<Habit[]> {
+  // Habits report "completed" for the user's current local day; tasks keep their one-off state.
+  async getHabits(tz = 0): Promise<Habit[]> {
     const c = await db();
-    return (check(await c.from("habits").select("*").order("id")) as HabitRow[]).map(toHabit);
+    const rows = (check(await c.from("habits").select("*").order("id")) as HabitRow[]).map(toHabit);
+    const today = localDate(tz);
+    const { data, error } = await c.from("habit_completions").select("habit_id").eq("local_date", today);
+    if (error) throw new Error(error.message);
+    const doneToday = new Set((data ?? []).map((r) => r.habit_id));
+    return rows.map((h) => (h.kind === "task" ? h : { ...h, completed: doneToday.has(h.id) }));
   },
-  async getHabit(id: number): Promise<Habit | undefined> {
-    const c = await db();
-    const rows = check(await c.from("habits").select("*").eq("id", id)) as HabitRow[];
-    return rows[0] ? toHabit(rows[0]) : undefined;
+  async getHabit(id: number, tz = 0): Promise<Habit | undefined> {
+    return (await storage.getHabits(tz)).find((h) => h.id === id);
   },
-  async createHabit(h: InsertHabit): Promise<Habit> {
+  async createHabit(h: InsertHabit, tz = 0): Promise<Habit> {
     const c = await db();
     const row = habitToRow(h);
-    if (row["completed"]) { row["points_awarded"] = false; }
+    delete row["completed"];
     const created = toHabit(check(await c.from("habits").insert(row as { name: string }).select().single()) as HabitRow);
-    if (created.completed) return (await storage.setCompletion(created.id, true)) ?? created;
-    return created;
+    if (h.completed) return (await storage.setCompletion(created.id, true, tz)) ?? created;
+    return (await storage.getHabit(created.id, tz)) ?? created;
   },
   // Updates non-completion fields; completion goes through setCompletion so points stay consistent.
-  async updateHabit(id: number, u: Partial<InsertHabit>): Promise<Habit | undefined> {
+  async updateHabit(id: number, u: Partial<InsertHabit>, tz = 0): Promise<Habit | undefined> {
     const c = await db();
     const { completed, ...rest } = u;
     const row = habitToRow(rest);
@@ -105,34 +110,81 @@ export const storage = {
       const rows = check(await c.from("habits").update(row as { name?: string }).eq("id", id).select()) as HabitRow[];
       if (!rows[0]) return undefined;
     }
-    if (completed !== undefined) return storage.setCompletion(id, !!completed);
-    return storage.getHabit(id);
+    if (completed !== undefined) return storage.setCompletion(id, !!completed, tz);
+    return storage.getHabit(id, tz);
   },
-  // Idempotent: points are awarded only on the transition points_awarded false -> true (atomic conditional update).
-  async setCompletion(id: number, done: boolean): Promise<Habit | undefined> {
+  // Idempotent. Habits: one completion row per local day (unique index). Tasks: once, guarded by points_awarded.
+  async setCompletion(id: number, done: boolean, tz = 0): Promise<Habit | undefined> {
     const c = await db();
-    if (done) {
-      const rows = check(
-        await c.from("habits")
-          .update({ completed: true, points_awarded: true, completed_at: new Date().toISOString() })
-          .eq("id", id).eq("points_awarded", false).select(),
-      ) as HabitRow[];
-      if (rows[0]) await adjustScore(SCORE_PER_HABIT);
+    const rows = check(await c.from("habits").select("*").eq("id", id)) as HabitRow[];
+    const h = rows[0];
+    if (!h) return undefined;
+    const today = localDate(tz);
+    if (h.kind === "task") {
+      if (done) {
+        const upd = check(
+          await c.from("habits").update({ completed: true, points_awarded: true, completed_at: new Date().toISOString() })
+            .eq("id", id).eq("points_awarded", false).select(),
+        ) as HabitRow[];
+        if (upd[0]) {
+          check(await c.from("habit_completions").insert({ habit_id: id, habit_name: h.name, kind: "task", local_date: today, points: SCORE_PER_COMPLETION }).select());
+          await adjustScore(SCORE_PER_COMPLETION);
+        }
+      } else {
+        const upd = check(
+          await c.from("habits").update({ completed: false, points_awarded: false, completed_at: null })
+            .eq("id", id).eq("points_awarded", true).select(),
+        ) as HabitRow[];
+        if (upd[0]) {
+          const del = check(await c.from("habit_completions").delete().eq("habit_id", id).select()) as { points: number }[];
+          await adjustScore(-del.reduce((a, r) => a + r.points, 0));
+        } else check(await c.from("habits").update({ completed: false }).eq("id", id).select());
+      }
+    } else if (done) {
+      const ins = await c.from("habit_completions")
+        .upsert({ habit_id: id, habit_name: h.name, kind: "habit", local_date: today, points: SCORE_PER_COMPLETION },
+          { onConflict: "habit_id,local_date", ignoreDuplicates: true })
+        .select();
+      if (ins.error) throw new Error(ins.error.message);
+      if ((ins.data ?? []).length > 0) {
+        await adjustScore(SCORE_PER_COMPLETION);
+        check(await c.from("habits").update({ completed_at: new Date().toISOString() }).eq("id", id).select());
+      }
     } else {
-      const rows = check(
-        await c.from("habits").update({ completed: false, points_awarded: false, completed_at: null })
-          .eq("id", id).eq("points_awarded", true).select(),
-      ) as HabitRow[];
-      if (rows[0]) await adjustScore(-SCORE_PER_HABIT);
-      else check(await c.from("habits").update({ completed: false }).eq("id", id).select());
+      const del = check(await c.from("habit_completions").delete().eq("habit_id", id).eq("local_date", today).select()) as { points: number }[];
+      if (del.length) await adjustScore(-del.reduce((a, r) => a + r.points, 0));
     }
-    return storage.getHabit(id);
+    return storage.getHabit(id, tz);
   },
+  // Deleting keeps earned points and completion history (habit_id becomes null).
   async deleteHabit(id: number): Promise<boolean> {
     const c = await db();
     const rows = check(await c.from("habits").delete().eq("id", id).select()) as HabitRow[];
-    if (rows[0]?.points_awarded) await adjustScore(-SCORE_PER_HABIT);
     return rows.length > 0;
+  },
+  async getStats(tz = 0) {
+    const c = await db();
+    const today = localDate(tz);
+    const [items, prof, comps] = await Promise.all([
+      storage.getHabits(tz),
+      storage.getProfile(),
+      c.from("habit_completions").select("local_date").order("local_date", { ascending: false }).limit(2000),
+    ]);
+    if (comps.error) throw new Error(comps.error.message);
+    const days = new Set((comps.data ?? []).map((r) => r.local_date as string));
+    let d = days.has(today) ? today : shiftDate(today, -1);
+    let consecutiveDays = 0;
+    while (days.has(d)) { consecutiveDays++; d = shiftDate(d, -1); }
+    const dueToday = items.filter((h) => h.kind !== "task" || (h.dueAt && localDate(tz, new Date(h.dueAt)) === today));
+    const doneToday = dueToday.filter((h) => h.completed).length;
+    return {
+      points: prof?.xp ?? 0,
+      consecutiveDays,
+      today,
+      dueToday: dueToday.length,
+      completedToday: doneToday,
+      dailyCompletionRate: dueToday.length ? Math.round((doneToday / dueToday.length) * 100) : null,
+    };
   },
   async getProfile(): Promise<Profile | undefined> {
     const c = await db();
@@ -153,12 +205,20 @@ export const storage = {
   },
 };
 
-export const SCORE_PER_HABIT = 10;
-export function calcLevel(score: number): number {
-  if (score >= 600) return 4;
-  if (score >= 300) return 3;
-  if (score >= 100) return 2;
-  return 1;
+export const SCORE_PER_COMPLETION = 5;
+
+// tz = Date.getTimezoneOffset() of the user's browser (minutes, UTC - local).
+export function localDate(tz = 0, at = new Date()): string {
+  return new Date(at.getTime() - tz * 60000).toISOString().slice(0, 10);
+}
+function shiftDate(d: string, days: number): string {
+  const t = new Date(`${d}T00:00:00Z`);
+  t.setUTCDate(t.getUTCDate() + days);
+  return t.toISOString().slice(0, 10);
+}
+export function tzFrom(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) && Math.abs(n) <= 840 ? n : 0;
 }
 
 export function zodError(err: unknown) {

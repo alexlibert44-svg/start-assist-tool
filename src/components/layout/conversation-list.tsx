@@ -13,7 +13,7 @@ import {
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-const COLLAPSED_COUNT = 5;
+const COLLAPSED_COUNT = 3;
 
 export function ConversationList({ activePath, characterId }: { activePath: string; characterId: ConversationCharacter }) {
   const { data: list, isLoading, error } = useCharacterConversations(characterId);

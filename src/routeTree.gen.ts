@@ -17,6 +17,7 @@ import { Route as ApiConversationsRouteImport } from './routes/api/conversations
 import { Route as ApiHabitsRouteImport } from './routes/api/habits'
 import { Route as ApiMessagesRouteImport } from './routes/api/messages'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
+import { Route as ApiStatsRouteImport } from './routes/api/stats'
 import { Route as ChatConversationIdRouteImport } from './routes/chat.$conversationId'
 import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations.$id'
 import { Route as ApiHabitsIdRouteImport } from './routes/api/habits.$id'
@@ -63,6 +64,11 @@ const ApiProfileRoute = ApiProfileRouteImport.update({
   path: '/api/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStatsRoute = ApiStatsRouteImport.update({
+  id: '/api/stats',
+  path: '/api/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatConversationIdRoute = ChatConversationIdRouteImport.update({
   id: '/chat/$conversationId',
   path: '/chat/$conversationId',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
+  '/api/stats': typeof ApiStatsRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
+  '/api/stats': typeof ApiStatsRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
+  '/api/stats': typeof ApiStatsRoute
   '/chat/$conversationId': typeof ChatConversationIdRoute
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/api/habits'
     | '/api/messages'
     | '/api/profile'
+    | '/api/stats'
     | '/chat/$conversationId'
     | '/api/conversations/$id'
     | '/api/habits/$id'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/api/habits'
     | '/api/messages'
     | '/api/profile'
+    | '/api/stats'
     | '/chat/$conversationId'
     | '/api/conversations/$id'
     | '/api/habits/$id'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/api/habits'
     | '/api/messages'
     | '/api/profile'
+    | '/api/stats'
     | '/chat/$conversationId'
     | '/api/conversations/$id'
     | '/api/habits/$id'
@@ -193,6 +205,7 @@ export interface RootRouteChildren {
   ApiHabitsRoute: typeof ApiHabitsRouteWithChildren
   ApiMessagesRoute: typeof ApiMessagesRouteWithChildren
   ApiProfileRoute: typeof ApiProfileRoute
+  ApiStatsRoute: typeof ApiStatsRoute
   ChatConversationIdRoute: typeof ChatConversationIdRoute
 }
 
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       path: '/api/profile'
       fullPath: '/api/profile'
       preLoaderRoute: typeof ApiProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stats': {
+      id: '/api/stats'
+      path: '/api/stats'
+      fullPath: '/api/stats'
+      preLoaderRoute: typeof ApiStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat/$conversationId': {
@@ -347,6 +367,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHabitsRoute: ApiHabitsRouteWithChildren,
   ApiMessagesRoute: ApiMessagesRouteWithChildren,
   ApiProfileRoute: ApiProfileRoute,
+  ApiStatsRoute: ApiStatsRoute,
   ChatConversationIdRoute: ChatConversationIdRoute,
 }
 export const routeTree = rootRouteImport

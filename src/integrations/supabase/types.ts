@@ -44,6 +44,44 @@ export type Database = {
         }
         Relationships: []
       }
+      habit_completions: {
+        Row: {
+          completed_at: string
+          habit_id: number | null
+          habit_name: string
+          id: number
+          kind: string
+          local_date: string
+          points: number
+        }
+        Insert: {
+          completed_at?: string
+          habit_id?: number | null
+          habit_name: string
+          id?: number
+          kind: string
+          local_date: string
+          points: number
+        }
+        Update: {
+          completed_at?: string
+          habit_id?: number | null
+          habit_name?: string
+          id?: number
+          kind?: string
+          local_date?: string
+          points?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_completions_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       habits: {
         Row: {
           completed: boolean | null
@@ -51,6 +89,7 @@ export type Database = {
           created_at: string | null
           due_at: string | null
           id: number
+          kind: string
           linked_character: string | null
           name: string
           points_awarded: boolean
@@ -62,6 +101,7 @@ export type Database = {
           created_at?: string | null
           due_at?: string | null
           id?: number
+          kind?: string
           linked_character?: string | null
           name: string
           points_awarded?: boolean
@@ -73,6 +113,7 @@ export type Database = {
           created_at?: string | null
           due_at?: string | null
           id?: number
+          kind?: string
           linked_character?: string | null
           name?: string
           points_awarded?: boolean

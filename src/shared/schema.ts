@@ -18,6 +18,7 @@ export const habits = pgTable("habits", {
   completed: boolean("completed").default(false),
   streak: integer("streak").default(0),
   dueAt: timestamp("due_at", { mode: "string", withTimezone: true }),
+  kind: text("kind").default("habit"), // 'habit' (daily, resets each local day) or 'task' (one-off)
   linkedCharacter: text("linked_character"), // specialist whose in-app activity completes this task
   pointsAwarded: boolean("points_awarded").default(false),
   completedAt: timestamp("completed_at", { mode: "string", withTimezone: true }),

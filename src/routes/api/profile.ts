@@ -8,7 +8,7 @@ export const Route = createFileRoute("/api/profile")({
     handlers: {
       GET: async () => {
         let item = await storage.getProfile();
-        if (!item) item = await storage.updateProfile({ name: "Focus Seeker", level: 1, xp: 0, focusSessions: 0 });
+        if (!item) item = await storage.updateProfile({ name: "Focus Seeker", xp: 0, focusSessions: 0 });
         return Response.json(item);
       },
       PUT: async ({ request }) => {
