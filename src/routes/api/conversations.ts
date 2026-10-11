@@ -9,7 +9,10 @@ export const Route = createFileRoute("/api/conversations")({
     handlers: {
       GET: async ({ request }) => {
         try {
-          return Response.json(await conversations.listConversations(ownerFromRequest(request)));
+          const cid = new URL(request.url).searchParams.get("characterId");
+          if (cid && !CHARS.includes(cid)) return Response.json({ message: "Unknown characterId" }, { status: 400 });
+          return Response.json(await conversations.listConversations(ownerFromRequest(request),
+            cid ? { characterId: cid as ConversationCharacter } : undefined));
         } catch (e) {
           console.error(e);
           return Response.json({ message: "Could not load conversations" }, { status: 500 });

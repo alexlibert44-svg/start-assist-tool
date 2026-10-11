@@ -14,8 +14,11 @@ async function json<T>(res: Response, fallback: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function fetchConversations(): Promise<Conversation[]> {
-  return json(await fetch("/api/conversations"), "Failed to load conversations");
+export const characterConversationsKey = (characterId: ConversationCharacter) => ["/api/conversations", "character", characterId];
+
+export async function fetchConversations(characterId?: ConversationCharacter): Promise<Conversation[]> {
+  const url = characterId ? `/api/conversations?characterId=${encodeURIComponent(characterId)}` : "/api/conversations";
+  return json(await fetch(url), "Failed to load conversations");
 }
 
 export async function createConversationRequest(characterId: ConversationCharacter): Promise<Conversation> {
@@ -30,7 +33,12 @@ export async function createConversationRequest(characterId: ConversationCharact
 }
 
 export function useConversations() {
-  return useQuery({ queryKey: CONVERSATIONS_KEY, queryFn: fetchConversations });
+  return useQuery({ queryKey: CONVERSATIONS_KEY, queryFn: () => fetchConversations() });
+}
+
+/** Conversations owned by one character only (filtered server-side by character_id). */
+export function useCharacterConversations(characterId: ConversationCharacter) {
+  return useQuery({ queryKey: characterConversationsKey(characterId), queryFn: () => fetchConversations(characterId) });
 }
 
 export function useConversation(id: string) {
@@ -69,7 +77,7 @@ export function useRenameConversation() {
         "Failed to rename conversation",
       ),
     onSuccess: (conv) => {
-      qc.setQueryData<Conversation[]>(CONVERSATIONS_KEY, (list) => list?.map((c) => (c.id === conv.id ? conv : c)));
+      qc.setQueriesData<Conversation[]>({ queryKey: CONVERSATIONS_KEY }, (list) => (Array.isArray(list) ? list.map((c) => (c.id === conv.id ? conv : c)) : list));
       void qc.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
     },
   });
@@ -87,8 +95,9 @@ export function useDeleteConversation() {
       return id;
     },
     onSuccess: (id) => {
-      qc.setQueryData<Conversation[]>(CONVERSATIONS_KEY, (list) => list?.filter((c) => c.id !== id));
-      qc.removeQueries({ queryKey: conversationKey(id) });
+      qc.setQueriesData<Conversation[]>({ queryKey: CONVERSATIONS_KEY }, (list) => (Array.isArray(list) ? list.filter((c) => c.id !== id) : list));
+      qc.removeQueries({ queryKey: conversationKey(id), exact: true });
+      void qc.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
     },
   });
 }
@@ -101,8 +110,8 @@ export function useOpenCharacter() {
     async (characterId: ConversationCharacter, opts?: { forceNew?: boolean }) => {
       let target: Conversation | undefined;
       if (!opts?.forceNew) {
-        const list = await qc.fetchQuery({ queryKey: CONVERSATIONS_KEY, queryFn: fetchConversations, staleTime: 0 });
-        target = list.find((c) => c.characterId === characterId);
+        const list = await qc.fetchQuery({ queryKey: characterConversationsKey(characterId), queryFn: () => fetchConversations(characterId), staleTime: 0 });
+        target = list[0];
       }
       if (!target) {
         target = await createConversationRequest(characterId);
