@@ -14,3 +14,6 @@
 - tsconfig strict extras (exactOptionalPropertyTypes, noUncheckedIndexedAccess, noPropertyAccessFromIndexSignature) are off so the imported source compiles without being rewritten.
 - Tasks reuse the habits table (due_at, linked_character, points_awarded); all completion goes through storage.setCompletion, whose conditional update on points_awarded guarantees points are awarded once.
 - AI agent logic (tools, routing, character scopes) lives in src/routes/api/chat.ts; handoffs return `handoff` and the chat page auto-sends it to the target character via the character store.
+- Conversations go through the ConversationRepository interface (src/shared/conversations.ts); the active adapter is exported from src/server/conversations.server.ts so the backend can be swapped (see docs/SUPABASE_SETUP.md) without touching UI or routes.
+- Each chat lives at /chat/$conversationId and its character comes from the conversation row; "/" only redirects to the latest conversation.
+- Handoffs resolve a target conversation server-side (reuse a model-chosen matching conversation of that character, else create one) and return its id; the legacy /api/messages endpoints remain only for backward compatibility.
