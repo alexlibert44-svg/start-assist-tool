@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { conversations, ownerFromRequest } from "@/server/conversations.server";
-import { storage } from "@/server/storage.server";
+import { storageForRequest } from "@/server/storage.server";
 import { isUuid } from "@/shared/conversations";
 
 export const Route = createFileRoute("/api/conversations/$id/messages")({
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/api/conversations/$id/messages")({
           });
           // Same focus-session tracking the original messages endpoint does (no points).
           if (body.sender === "user") {
+            const storage = await storageForRequest(request);
             const prof = await storage.getProfile();
             if (prof) await storage.updateProfile({ focusSessions: (prof.focusSessions ?? 0) + 1 });
           }
