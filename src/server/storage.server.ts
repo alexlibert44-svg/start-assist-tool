@@ -108,7 +108,7 @@ const storage = {
     const c = await db();
     const row = habitToRow(h);
     delete row["completed"];
-    const created = toHabit(check(await c.from("habits").insert({ ...row, user_id: uid } as { name: string }).select().single()) as HabitRow);
+    const created = toHabit(check(await c.from("habits").insert({ ...row, user_id: uid } as unknown as { name: string }).select().single()) as HabitRow);
     if (h.completed) return (await storage.setCompletion(created.id, true, tz)) ?? created;
     return (await storage.getHabit(created.id, tz)) ?? created;
   },
