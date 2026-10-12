@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import ProgressPage from "@/components/pages/progress";
 import { LarryOnlyRoute } from "@/components/larry-only";
 
-export const Route = createFileRoute("/progress")({
+export const Route = createFileRoute("/_authenticated/progress")({
   head: () => ({
     meta: [
       { title: "Points & Progress — Larry" },

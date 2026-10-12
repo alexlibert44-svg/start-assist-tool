@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import HabitsPage from "@/components/pages/habits";
 import { LarryOnlyRoute } from "@/components/larry-only";
 
-export const Route = createFileRoute("/habits")({
+export const Route = createFileRoute("/_authenticated/habits")({
   head: () => ({
     meta: [
       { title: "Habit Tracker — Larry" },
