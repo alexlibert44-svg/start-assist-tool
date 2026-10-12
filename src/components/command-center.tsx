@@ -1,20 +1,39 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTeamSetup } from "@/hooks/use-team-setup";
+import { usePlans, startPlanning } from "@/hooks/use-plans";
+import { useCharacter } from "@/store/use-character";
+import { queryClient } from "@/lib/queryClient";
+import { CONVERSATIONS_KEY } from "@/hooks/use-conversations";
 import { KIND_LABEL } from "@/shared/team-setup";
 
-// Larry's Command Center: shown once all three specialist profiles are saved and no plan exists yet.
-export function CommandCenter() {
+export const PLANNING_KICKOFF = "Let's build my first week.";
+
+// Larry's Command Center: shown once all three specialist profiles are saved, until planning has started.
+export function CommandCenter({ planningStarted }: { planningStarted: boolean }) {
   const navigate = useNavigate();
+  const handoff = useCharacter((s) => s.handoff);
   const { data } = useTeamSetup();
-  const plans = useQuery({
-    queryKey: ["/api/plans"],
-    queryFn: async () => { const r = await fetch("/api/plans"); if (!r.ok) throw new Error(); return (await r.json()) as unknown[]; },
-    enabled: !!data?.completedAt,
-  });
-  if (!data?.completedAt || !plans.data || plans.data.length > 0) return null;
+  const plans = usePlans();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!data?.completedAt || !plans.data || plans.data.length > 0 || planningStarted) return null;
+
+  const start = async () => {
+    if (busy) return;
+    setBusy(true); setError(null);
+    try {
+      const r = await startPlanning();
+      if (!r.resumed) handoff("Larry", "Larry", PLANNING_KICKOFF, r.conversationId);
+      await queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
+      await navigate({ to: "/chat/$conversationId", params: { conversationId: r.conversationId } });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally { setBusy(false); }
+  };
+
   return (
     <div className="glass-panel mt-4 p-4 sm:p-5 space-y-3 border border-purple-500/30 shrink-0">
       <div className="text-xs uppercase tracking-wider text-purple-300 font-semibold">Command Center</div>
@@ -30,8 +49,10 @@ export function CommandCenter() {
         <p>One final step remains.</p>
         <p className="font-semibold">Let's build your first week.</p>
       </div>
-      <Button onClick={() => navigate({ to: "/plans" })} className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
-        Build My First Week
+      {error && <p className="text-sm text-red-300">{error}</p>}
+      <Button onClick={start} disabled={busy} className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+        {busy && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+        {error ? "Try again" : "Build My First Week"}
       </Button>
     </div>
   );
