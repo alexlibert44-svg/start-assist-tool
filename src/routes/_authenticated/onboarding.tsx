@@ -132,9 +132,7 @@ function Onboarding() {
             name={a.preferredName}
             onFinish={async () => {
               if (step < DONE && !(await save({ onboardingStep: DONE }))) return;
-              const list = await fetchConversations("Larry");
-              const conv = list[0] ?? (await createConversationRequest("Larry"));
-              navigate({ to: "/chat/$conversationId", params: { conversationId: conv.id }, replace: true });
+              navigate({ to: "/team-setup", replace: true });
             }}
           />
         )}
@@ -201,7 +199,6 @@ const TEAM_INFO: { id: CharacterId; area: string; intro: string }[] = [
 
 function TeamIntro({ name, onFinish }: { name: string; onFinish: () => Promise<void> }) {
   const [open, setOpen] = useState<CharacterId | null>(null);
-  const [setupNote, setSetupNote] = useState(false);
   const [busy, setBusy] = useState(false);
   const larry = CHARACTERS.Larry;
   return (
@@ -234,18 +231,9 @@ function TeamIntro({ name, onFinish }: { name: string; onFinish: () => Promise<v
       <p className="text-white/85 italic border-l-2 border-purple-500/60 pl-3">
         “Before I can build a plan that fits you, each member of the team needs to get to know you.”
       </p>
-      {setupNote ? (
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4 space-y-3">
-          <p className="text-white/80 text-sm">Team Setup — each specialist's questions — arrives in the next update. For now you can start chatting with Larry and the team.</p>
-          <Button disabled={busy} onClick={async () => { setBusy(true); await onFinish(); setBusy(false); }} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
-            Continue to Larry
-          </Button>
-        </div>
-      ) : (
-        <Button size="lg" onClick={() => setSetupNote(true)} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
-          Start Team Setup
-        </Button>
-      )}
+      <Button size="lg" disabled={busy} onClick={async () => { setBusy(true); await onFinish(); setBusy(false); }} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+        Start Team Setup
+      </Button>
     </div>
   );
 }

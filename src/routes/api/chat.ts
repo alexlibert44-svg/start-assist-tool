@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { storageFor, type Storage } from "@/server/storage.server";
+import { profileContext } from "@/server/team-setup.server";
 import type { Habit } from "@/shared/schema";
 import { conversations, ownerFromRequest } from "@/server/conversations.server";
 import { isUuid, type ConversationCharacter, type OwnerScope } from "@/shared/conversations";
@@ -293,6 +294,11 @@ export const Route = createFileRoute("/api/chat")({
             }
           } catch (ctxErr) {
             console.error("Context injection error (non-fatal):", ctxErr);
+          }
+          try {
+            system += await profileContext(scope.userId, charId);
+          } catch (pErr) {
+            console.error("Profile context error (non-fatal):", pErr);
           }
           try {
             const others = (await conversations.listConversations(scope, { limit: 30 }))
