@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useTeamSetup } from "@/hooks/use-team-setup";
+import { KIND_LABEL } from "@/shared/team-setup";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,11 +90,31 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
-        <div className="glass-panel p-5 text-white/50 text-sm">
-          Details from Sensei, Hassan and Dr. Neo will appear here after Team Setup, coming in a later update.
-        </div>
+        <TeamProfiles />
         <Button variant="ghost" onClick={signOut} className="text-white/60 hover:text-white">Sign out</Button>
       </div>
+    </div>
+  );
+}
+
+function TeamProfiles() {
+  const { data, error } = useTeamSetup();
+  if (error) return <div className="glass-panel p-5 text-red-400 text-sm">Could not load your team profiles.</div>;
+  if (!data) return null;
+  return (
+    <div className="glass-panel p-5 sm:p-6 space-y-3">
+      <h2 className="text-white font-semibold">Team profiles</h2>
+      {data.stages.map((s) => (
+        <div key={s.kind} className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-white text-sm">{KIND_LABEL[s.kind]} <span className="text-white/45">· {s.character}</span></div>
+            <div className="text-xs text-white/50">{s.completedAt ? "Ready" : "Not completed"}</div>
+          </div>
+          <Link to="/team-setup" search={s.completedAt ? { edit: s.kind } : {}} className="text-sm text-purple-300 hover:text-purple-200">
+            {s.completedAt ? "Review / edit" : "Continue setup"}
+          </Link>
+        </div>
+      ))}
     </div>
   );
 }
