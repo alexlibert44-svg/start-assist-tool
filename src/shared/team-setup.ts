@@ -52,7 +52,7 @@ export const wellnessSchema = z.object({
 export const developmentSchema = z.object({
   mainGoal: str,
   habitsToBuild: list(),
-  habitsToChange: list(0),
+  habitsToChange: list(0).optional(),
   difficulties: list(),
   focusLevel: z.number().int().min(1).max(5).optional(),
   stressLevel: z.number().int().min(1).max(5).optional(),
