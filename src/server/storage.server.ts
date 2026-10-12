@@ -11,6 +11,8 @@ type MsgRow = { id: number; content: string; sender: string; character_id: strin
 type ProfRow = {
   id: number; name: string; level: number | null; xp: number | null;
   focus_sessions: number | null; phone_time: number | null; member_since: string | null;
+  preferred_name: string | null; primary_goal: string | null; biggest_challenge: string | null;
+  phone_usage: string | null; current_situation: string | null; onboarding_step: number; onboarding_completed: boolean;
 };
 
 const toMsg = (r: MsgRow) =>
@@ -19,6 +21,9 @@ const toProf = (r: ProfRow) =>
   ({
     id: r.id, name: r.name, level: r.level, xp: r.xp, focusSessions: r.focus_sessions,
     phoneTime: r.phone_time, memberSince: r.member_since,
+    preferredName: r.preferred_name, primaryGoal: r.primary_goal, biggestChallenge: r.biggest_challenge,
+    phoneUsage: r.phone_usage, currentSituation: r.current_situation, onboardingStep: r.onboarding_step,
+    onboardingCompleted: r.onboarding_completed,
   }) as unknown as Profile;
 
 function profToRow(u: Partial<InsertProfile>) {
@@ -28,6 +33,10 @@ function profToRow(u: Partial<InsertProfile>) {
   if (u.xp !== undefined) row["xp"] = u.xp;
   if (u.focusSessions !== undefined) row["focus_sessions"] = u.focusSessions;
   if (u.phoneTime !== undefined) row["phone_time"] = u.phoneTime;
+  const extra: [keyof InsertProfile, string][] = [["preferredName", "preferred_name"], ["primaryGoal", "primary_goal"],
+    ["biggestChallenge", "biggest_challenge"], ["phoneUsage", "phone_usage"], ["currentSituation", "current_situation"],
+    ["onboardingStep", "onboarding_step"], ["onboardingCompleted", "onboarding_completed"]];
+  for (const [k, col] of extra) if (u[k] !== undefined) row[col] = u[k];
   return row;
 }
 

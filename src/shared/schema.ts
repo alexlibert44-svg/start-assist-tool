@@ -34,6 +34,13 @@ export const profile = pgTable("profile", {
   focusSessions: integer("focus_sessions").default(0),
   phoneTime: integer("phone_time").default(0),
   memberSince: timestamp("member_since").defaultNow(),
+  preferredName: text("preferred_name"),
+  primaryGoal: text("primary_goal"),
+  biggestChallenge: text("biggest_challenge"),
+  phoneUsage: text("phone_usage"),
+  currentSituation: text("current_situation"),
+  onboardingStep: integer("onboarding_step").default(0),
+  onboardingCompleted: boolean("onboarding_completed").default(false),
 });
 
 // Types & Zod Schemas
