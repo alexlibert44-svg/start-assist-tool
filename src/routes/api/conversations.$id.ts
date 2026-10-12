@@ -11,7 +11,7 @@ export const Route = createFileRoute("/api/conversations/$id")({
       GET: async ({ request, params }) => {
         if (!isUuid(params.id)) return notFound();
         try {
-          const scope = ownerFromRequest(request);
+          const scope = (await ownerFromRequest(request));
           const conv = await conversations.getConversation(scope, params.id);
           if (!conv) return notFound();
           return Response.json({ conversation: conv, messages: await conversations.getMessages(scope, params.id) });
@@ -23,14 +23,14 @@ export const Route = createFileRoute("/api/conversations/$id")({
         const title = typeof body.title === "string" ? body.title.trim().slice(0, 120) : "";
         if (!title) return Response.json({ message: "Title cannot be empty" }, { status: 400 });
         try {
-          const conv = await conversations.updateConversationTitle(ownerFromRequest(request), params.id, title);
+          const conv = await conversations.updateConversationTitle((await ownerFromRequest(request)), params.id, title);
           return conv ? Response.json(conv) : notFound();
         } catch (e) { return fail(e, "Could not rename conversation"); }
       },
       DELETE: async ({ request, params }) => {
         if (!isUuid(params.id)) return notFound();
         try {
-          const ok = await conversations.deleteConversation(ownerFromRequest(request), params.id);
+          const ok = await conversations.deleteConversation((await ownerFromRequest(request)), params.id);
           return ok ? new Response(null, { status: 204 }) : notFound();
         } catch (e) { return fail(e, "Could not delete conversation"); }
       },

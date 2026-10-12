@@ -11,7 +11,7 @@ export const Route = createFileRoute("/api/conversations")({
         try {
           const cid = new URL(request.url).searchParams.get("characterId");
           if (cid && !CHARS.includes(cid)) return Response.json({ message: "Unknown characterId" }, { status: 400 });
-          return Response.json(await conversations.listConversations(ownerFromRequest(request),
+          return Response.json(await conversations.listConversations((await ownerFromRequest(request)),
             cid ? { characterId: cid as ConversationCharacter } : undefined));
         } catch (e) {
           console.error(e);
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/api/conversations")({
           return Response.json({ message: "Valid characterId is required" }, { status: 400 });
         }
         try {
-          const conv = await conversations.createConversation(ownerFromRequest(request), {
+          const conv = await conversations.createConversation((await ownerFromRequest(request)), {
             characterId: body.characterId as ConversationCharacter, title: body.title,
           });
           return Response.json(conv, { status: 201 });

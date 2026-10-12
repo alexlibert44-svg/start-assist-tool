@@ -270,7 +270,7 @@ export const Route = createFileRoute("/api/chat")({
             return Response.json({ reply: "No message provided." }, { status: 400 });
           }
           const charId = resolveCharacterId(character || characterId);
-          const scope = ownerFromRequest(request);
+          const scope = (await ownerFromRequest(request));
           const ctx: Ctx = { charId, tz: typeof tzOffsetMinutes === "number" ? tzOffsetMinutes : 0, scope, conversationId: isUuid(conversationId) ? conversationId : null, handoff: null, changed: false };
 
           let system = CHARACTER_SYSTEM_PROMPTS[charId] + "\n\nAlways reply in the same language as the user's latest message (e.g. English question -> English answer), regardless of earlier messages or the user's location.";

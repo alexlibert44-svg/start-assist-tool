@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/conversations/$id/messages")({
           return Response.json({ message: "sender and content are required" }, { status: 400 });
         }
         try {
-          const msg = await conversations.addMessage(ownerFromRequest(request), params.id, {
+          const msg = await conversations.addMessage((await ownerFromRequest(request)), params.id, {
             sender: body.sender, content: body.content,
             metadata: body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : {},
           });
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/api/conversations/$id/messages")({
       DELETE: async ({ request, params }) => {
         if (!isUuid(params.id)) return Response.json({ message: "Conversation not found" }, { status: 404 });
         try {
-          await conversations.clearMessages(ownerFromRequest(request), params.id);
+          await conversations.clearMessages((await ownerFromRequest(request)), params.id);
           return new Response(null, { status: 204 });
         } catch (e) {
           console.error(e);
