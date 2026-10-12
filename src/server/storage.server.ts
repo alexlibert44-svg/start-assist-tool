@@ -240,3 +240,8 @@ export function zodError(err: unknown) {
   const first = e.errors?.[0];
   return Response.json({ message: first?.message ?? "Invalid input", field: first?.path.join(".") }, { status: 400 });
 }
+
+export async function storageForRequest(request: Request) {
+  const { requireUserId } = await import("./auth.server");
+  return storageFor(await requireUserId(request));
+}
