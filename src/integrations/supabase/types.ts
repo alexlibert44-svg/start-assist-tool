@@ -222,6 +222,7 @@ export type Database = {
           phone_usage: string | null
           preferred_name: string | null
           primary_goal: string | null
+          team_setup_completed_at: string | null
           user_id: string | null
           xp: number | null
         }
@@ -239,6 +240,7 @@ export type Database = {
           phone_usage?: string | null
           preferred_name?: string | null
           primary_goal?: string | null
+          team_setup_completed_at?: string | null
           user_id?: string | null
           xp?: number | null
         }
@@ -256,8 +258,42 @@ export type Database = {
           phone_usage?: string | null
           preferred_name?: string | null
           primary_goal?: string | null
+          team_setup_completed_at?: string | null
           user_id?: string | null
           xp?: number | null
+        }
+        Relationships: []
+      }
+      specialist_profiles: {
+        Row: {
+          answers: Json
+          character_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          kind: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          character_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          character_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
