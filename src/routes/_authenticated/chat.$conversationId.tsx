@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import ChatPage from "@/components/pages/chat";
 
-export const Route = createFileRoute("/chat/$conversationId")({
+export const Route = createFileRoute("/_authenticated/chat/$conversationId")({
   head: () => ({
     meta: [
       { title: "Conversation — Larry Focus Coach" },

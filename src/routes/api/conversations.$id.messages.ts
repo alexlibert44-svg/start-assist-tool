@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { conversations, ownerFromRequest } from "@/server/conversations.server";
-import { storage } from "@/server/storage.server";
+import { storageForRequest } from "@/server/storage.server";
 import { isUuid } from "@/shared/conversations";
 
 export const Route = createFileRoute("/api/conversations/$id/messages")({
@@ -13,12 +13,13 @@ export const Route = createFileRoute("/api/conversations/$id/messages")({
           return Response.json({ message: "sender and content are required" }, { status: 400 });
         }
         try {
-          const msg = await conversations.addMessage(ownerFromRequest(request), params.id, {
+          const msg = await conversations.addMessage((await ownerFromRequest(request)), params.id, {
             sender: body.sender, content: body.content,
             metadata: body.metadata && typeof body.metadata === "object" ? (body.metadata as Record<string, unknown>) : {},
           });
           // Same focus-session tracking the original messages endpoint does (no points).
           if (body.sender === "user") {
+            const storage = await storageForRequest(request);
             const prof = await storage.getProfile();
             if (prof) await storage.updateProfile({ focusSessions: (prof.focusSessions ?? 0) + 1 });
           }
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/api/conversations/$id/messages")({
       DELETE: async ({ request, params }) => {
         if (!isUuid(params.id)) return Response.json({ message: "Conversation not found" }, { status: 404 });
         try {
-          await conversations.clearMessages(ownerFromRequest(request), params.id);
+          await conversations.clearMessages((await ownerFromRequest(request)), params.id);
           return new Response(null, { status: 204 });
         } catch (e) {
           console.error(e);

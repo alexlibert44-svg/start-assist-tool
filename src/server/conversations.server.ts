@@ -39,14 +39,16 @@ function check<T>(res: { data: T; error: { message: string } | null }): T {
   return res.data;
 }
 
-// Ownership filter: in single-user mode rows have user_id NULL.
+// Ownership filter: only the signed-in user's rows; signed-out requests are refused.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function owned<Q extends { is: any; eq: any }>(q: Q, scope: OwnerScope): Q {
-  return scope.userId ? q.eq("user_id", scope.userId) : q.is("user_id", null);
+  if (!scope.userId) throw new Error("Unauthorized");
+  return q.eq("user_id", scope.userId);
 }
 
 export const cloudRepository: ConversationRepository = {
   async createConversation(scope, input) {
+    if (!scope.userId) throw new Error("Unauthorized");
     const c = await db();
     const row = check(await c.from("conversations").insert({
       user_id: scope.userId, character_id: input.characterId,
@@ -94,7 +96,7 @@ export const cloudRepository: ConversationRepository = {
     if (!conv) throw new Error("Conversation not found");
     const c = await db();
     const row = check(await c.from("messages").insert({
-      conversation_id: conversationId, character_id: conv.characterId, sender: input.sender,
+      conversation_id: conversationId, user_id: scope.userId, character_id: conv.characterId, sender: input.sender,
       content: input.content, metadata: (input.metadata ?? {}) as never,
     }).select().single());
     const patch: { updated_at: string; title?: string } = { updated_at: new Date().toISOString() };
@@ -116,7 +118,8 @@ export const cloudRepository: ConversationRepository = {
 /** The active repository. Swap this export to change the persistence backend. */
 export const conversations: ConversationRepository = cloudRepository;
 
-/** Owner of the current request. No sign-in exists yet, so everything is single-user. */
-export function ownerFromRequest(_request: Request): OwnerScope {
-  return { userId: null };
+/** Owner of the current request (the signed-in user; null when signed out). */
+export async function ownerFromRequest(request: Request): Promise<OwnerScope> {
+  const { userIdFromRequest } = await import("./auth.server");
+  return { userId: await userIdFromRequest(request) };
 }

@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { api } from "@/shared/routes";
-import { storage, zodError, tzFrom } from "@/server/storage.server";
+import { storageForRequest, zodError, tzFrom } from "@/server/storage.server";
 
 export const Route = createFileRoute("/api/habits/$id")({
   server: {
     handlers: {
       PUT: async ({ request, params }) => {
+        const storage = await storageForRequest(request);
         try {
           const id = parseInt(params.id);
           const input = api.habits.update.input.parse(await request.json());
@@ -24,7 +25,8 @@ export const Route = createFileRoute("/api/habits/$id")({
           throw err;
         }
       },
-      DELETE: async ({ params }) => {
+      DELETE: async ({ request, params }) => {
+        const storage = await storageForRequest(request);
         try {
           const id = parseInt(params.id);
           if (isNaN(id)) return Response.json({ message: "Invalid habit id" }, { status: 400 });

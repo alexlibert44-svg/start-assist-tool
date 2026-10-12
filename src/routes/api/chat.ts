@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { storage } from "@/server/storage.server";
+import { storageFor, type Storage } from "@/server/storage.server";
 import type { Habit } from "@/shared/schema";
 import { conversations, ownerFromRequest } from "@/server/conversations.server";
 import { isUuid, type ConversationCharacter, type OwnerScope } from "@/shared/conversations";
@@ -105,6 +105,7 @@ const taskView = (h: Habit) => {
 };
 
 type Ctx = {
+  storage: Storage;
   charId: string; tz: number; scope: OwnerScope; conversationId: string | null;
   handoff: { character: string; question: string; conversationId: string; reused: boolean } | null; changed: boolean;
 };
@@ -138,7 +139,7 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): P
         const due = args["due_at"] ? new Date(String(args["due_at"])) : null;
         if (due && isNaN(due.getTime())) return { ok: false, error: "invalid due_at" };
         const linked = args["linked_character"] ? resolveCharacterId(String(args["linked_character"])) : null;
-        const t = await storage.createHabit({
+        const t = await ctx.storage.createHabit({
           name: nm, completed: false, streak: 0, dueAt: due ? due.toISOString() : null,
           kind: args["kind"] === "habit" ? "habit" : "task",
           linkedCharacter: linked && linked !== "Larry" ? linked : null,
@@ -148,7 +149,7 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): P
       }
       case "list_tasks": {
         const s = String(args["status"] ?? "all");
-        const all = (await storage.getHabits(ctx.tz)).map(taskView);
+        const all = (await ctx.storage.getHabits(ctx.tz)).map(taskView);
         return { ok: true, tasks: s === "open" ? all.filter((t) => !t.completed) : s === "done" ? all.filter((t) => t.completed) : all };
       }
       case "update_task": {
@@ -160,29 +161,29 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): P
           if (isNaN(d.getTime())) return { ok: false, error: "invalid due_at" };
           u["dueAt"] = d.toISOString();
         }
-        const t = await storage.updateHabit(id, u, ctx.tz);
+        const t = await ctx.storage.updateHabit(id, u, ctx.tz);
         if (!t) return { ok: false, error: "task not found" };
         ctx.changed = true;
         return { ok: true, task: taskView(t) };
       }
       case "complete_task": {
         const id = Number(args["task_id"]);
-        const before = await storage.getHabit(id, ctx.tz);
+        const before = await ctx.storage.getHabit(id, ctx.tz);
         if (!before) return { ok: false, error: "task not found" };
         if (before.completed) return { ok: true, already_completed: true, points_awarded_now: 0 };
-        const p0 = (await storage.getProfile())?.xp ?? 0;
-        const t = await storage.setCompletion(id, true, ctx.tz);
+        const p0 = (await ctx.storage.getProfile())?.xp ?? 0;
+        const t = await ctx.storage.setCompletion(id, true, ctx.tz);
         ctx.changed = true;
-        const p1 = (await storage.getProfile())?.xp ?? 0;
+        const p1 = (await ctx.storage.getProfile())?.xp ?? 0;
         return { ok: !!t?.completed, task: t && taskView(t), points_awarded_now: p1 - p0, points: p1 };
       }
       case "delete_task": {
-        const ok = await storage.deleteHabit(Number(args["task_id"]));
+        const ok = await ctx.storage.deleteHabit(Number(args["task_id"]));
         if (ok) ctx.changed = true;
         return ok ? { ok: true } : { ok: false, error: "task not found" };
       }
       case "get_progress": {
-        const st = await storage.getStats(ctx.tz);
+        const st = await ctx.storage.getStats(ctx.tz);
         return {
           ok: true, points: st.points, consecutive_active_days: st.consecutiveDays, local_date: st.today,
           due_today: st.dueToday, completed_today: st.completedToday,
@@ -190,13 +191,13 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): P
         };
       }
       case "complete_linked_activity": {
-        const open = (await storage.getHabits(ctx.tz)).filter((h) => !h.completed && h.linkedCharacter === ctx.charId);
+        const open = (await ctx.storage.getHabits(ctx.tz)).filter((h) => !h.completed && h.linkedCharacter === ctx.charId);
         const target = args["task_id"] ? open.find((h) => h.id === Number(args["task_id"])) : open[0];
         if (!target) return { ok: false, error: "no open task linked to you" };
-        const p0 = (await storage.getProfile())?.xp ?? 0;
-        const t = await storage.setCompletion(target.id, true, ctx.tz);
+        const p0 = (await ctx.storage.getProfile())?.xp ?? 0;
+        const t = await ctx.storage.setCompletion(target.id, true, ctx.tz);
         ctx.changed = true;
-        const p1 = (await storage.getProfile())?.xp ?? 0;
+        const p1 = (await ctx.storage.getProfile())?.xp ?? 0;
         return { ok: !!t?.completed, task: t && taskView(t), points_awarded_now: p1 - p0 };
       }
     }
@@ -270,8 +271,10 @@ export const Route = createFileRoute("/api/chat")({
             return Response.json({ reply: "No message provided." }, { status: 400 });
           }
           const charId = resolveCharacterId(character || characterId);
-          const scope = ownerFromRequest(request);
-          const ctx: Ctx = { charId, tz: typeof tzOffsetMinutes === "number" ? tzOffsetMinutes : 0, scope, conversationId: isUuid(conversationId) ? conversationId : null, handoff: null, changed: false };
+          const scope = (await ownerFromRequest(request));
+          if (!scope.userId) return Response.json({ reply: "Please sign in." }, { status: 401 });
+          const storage = storageFor(scope.userId);
+          const ctx: Ctx = { storage, charId, tz: typeof tzOffsetMinutes === "number" ? tzOffsetMinutes : 0, scope, conversationId: isUuid(conversationId) ? conversationId : null, handoff: null, changed: false };
 
           let system = CHARACTER_SYSTEM_PROMPTS[charId] + "\n\nAlways reply in the same language as the user's latest message (e.g. English question -> English answer), regardless of earlier messages or the user's location.";
           const off = typeof tzOffsetMinutes === "number" ? -tzOffsetMinutes : 0;

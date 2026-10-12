@@ -11,6 +11,8 @@ type MsgRow = { id: number; content: string; sender: string; character_id: strin
 type ProfRow = {
   id: number; name: string; level: number | null; xp: number | null;
   focus_sessions: number | null; phone_time: number | null; member_since: string | null;
+  preferred_name: string | null; primary_goal: string | null; biggest_challenge: string | null;
+  phone_usage: string | null; current_situation: string | null; onboarding_step: number; onboarding_completed: boolean;
 };
 
 const toMsg = (r: MsgRow) =>
@@ -19,6 +21,9 @@ const toProf = (r: ProfRow) =>
   ({
     id: r.id, name: r.name, level: r.level, xp: r.xp, focusSessions: r.focus_sessions,
     phoneTime: r.phone_time, memberSince: r.member_since,
+    preferredName: r.preferred_name, primaryGoal: r.primary_goal, biggestChallenge: r.biggest_challenge,
+    phoneUsage: r.phone_usage, currentSituation: r.current_situation, onboardingStep: r.onboarding_step,
+    onboardingCompleted: r.onboarding_completed,
   }) as unknown as Profile;
 
 function profToRow(u: Partial<InsertProfile>) {
@@ -28,6 +33,10 @@ function profToRow(u: Partial<InsertProfile>) {
   if (u.xp !== undefined) row["xp"] = u.xp;
   if (u.focusSessions !== undefined) row["focus_sessions"] = u.focusSessions;
   if (u.phoneTime !== undefined) row["phone_time"] = u.phoneTime;
+  const extra: [keyof InsertProfile, string][] = [["preferredName", "preferred_name"], ["primaryGoal", "primary_goal"],
+    ["biggestChallenge", "biggest_challenge"], ["phoneUsage", "phone_usage"], ["currentSituation", "current_situation"],
+    ["onboardingStep", "onboarding_step"], ["onboardingCompleted", "onboarding_completed"]];
+  for (const [k, col] of extra) if (u[k] !== undefined) row[col] = u[k];
   return row;
 }
 
@@ -51,7 +60,7 @@ function habitToRow(u: Partial<InsertHabit>) {
   return row;
 }
 
-async function adjustScore(delta: number) {
+async function adjustScore(storage: { getProfile: () => Promise<Profile | undefined>; updateProfile: (u: Partial<InsertProfile>) => Promise<Profile> }, delta: number) {
   const prof = await storage.getProfile();
   const newScore = Math.max(0, (prof?.xp ?? 0) + delta);
   await storage.updateProfile({ xp: newScore });
@@ -62,30 +71,32 @@ function check<T>(res: { data: T; error: { message: string } | null }): T {
   return res.data;
 }
 
-export const storage = {
+// Every query is scoped to the signed-in user (uid); rows of other users are never read or written.
+export function storageFor(uid: string) {
+const storage = {
   async getMessages(characterId?: string): Promise<Message[]> {
     const c = await db();
-    let q = c.from("messages").select("*").order("id");
+    let q = c.from("messages").select("*").eq("user_id", uid).order("id");
     if (characterId) q = q.eq("character_id", characterId);
     return (check(await q) as MsgRow[]).map(toMsg);
   },
   async createMessage(m: InsertMessage): Promise<Message> {
     const c = await db();
     const row = check(
-      await c.from("messages").insert({ content: m.content, sender: m.sender, character_id: m.characterId }).select().single(),
+      await c.from("messages").insert({ content: m.content, sender: m.sender, character_id: m.characterId, user_id: uid }).select().single(),
     );
     return toMsg(row as MsgRow);
   },
   async clearMessages(characterId: string): Promise<void> {
     const c = await db();
-    check(await c.from("messages").delete().eq("character_id", characterId));
+    check(await c.from("messages").delete().eq("user_id", uid).eq("character_id", characterId));
   },
   // Habits report "completed" for the user's current local day; tasks keep their one-off state.
   async getHabits(tz = 0): Promise<Habit[]> {
     const c = await db();
-    const rows = (check(await c.from("habits").select("*").order("id")) as HabitRow[]).map(toHabit);
+    const rows = (check(await c.from("habits").select("*").eq("user_id", uid).order("id")) as HabitRow[]).map(toHabit);
     const today = localDate(tz);
-    const { data, error } = await c.from("habit_completions").select("habit_id").eq("local_date", today);
+    const { data, error } = await c.from("habit_completions").select("habit_id").eq("user_id", uid).eq("local_date", today);
     if (error) throw new Error(error.message);
     const doneToday = new Set((data ?? []).map((r) => r.habit_id));
     return rows.map((h) => (h.kind === "task" ? h : { ...h, completed: doneToday.has(h.id) }));
@@ -97,7 +108,7 @@ export const storage = {
     const c = await db();
     const row = habitToRow(h);
     delete row["completed"];
-    const created = toHabit(check(await c.from("habits").insert(row as { name: string }).select().single()) as HabitRow);
+    const created = toHabit(check(await c.from("habits").insert({ ...row, user_id: uid } as unknown as { name: string }).select().single()) as HabitRow);
     if (h.completed) return (await storage.setCompletion(created.id, true, tz)) ?? created;
     return (await storage.getHabit(created.id, tz)) ?? created;
   },
@@ -107,7 +118,7 @@ export const storage = {
     const { completed, ...rest } = u;
     const row = habitToRow(rest);
     if (Object.keys(row).length > 0) {
-      const rows = check(await c.from("habits").update(row as { name?: string }).eq("id", id).select()) as HabitRow[];
+      const rows = check(await c.from("habits").update(row as { name?: string }).eq("id", id).eq("user_id", uid).select()) as HabitRow[];
       if (!rows[0]) return undefined;
     }
     if (completed !== undefined) return storage.setCompletion(id, !!completed, tz);
@@ -116,7 +127,7 @@ export const storage = {
   // Idempotent. Habits: one completion row per local day (unique index). Tasks: once, guarded by points_awarded.
   async setCompletion(id: number, done: boolean, tz = 0): Promise<Habit | undefined> {
     const c = await db();
-    const rows = check(await c.from("habits").select("*").eq("id", id)) as HabitRow[];
+    const rows = check(await c.from("habits").select("*").eq("id", id).eq("user_id", uid)) as HabitRow[];
     const h = rows[0];
     if (!h) return undefined;
     const today = localDate(tz);
@@ -127,8 +138,8 @@ export const storage = {
             .eq("id", id).eq("points_awarded", false).select(),
         ) as HabitRow[];
         if (upd[0]) {
-          check(await c.from("habit_completions").insert({ habit_id: id, habit_name: h.name, kind: "task", local_date: today, points: SCORE_PER_COMPLETION }).select());
-          await adjustScore(SCORE_PER_COMPLETION);
+          check(await c.from("habit_completions").insert({ user_id: uid, habit_id: id, habit_name: h.name, kind: "task", local_date: today, points: SCORE_PER_COMPLETION }).select());
+          await adjustScore(storage, SCORE_PER_COMPLETION);
         }
       } else {
         const upd = check(
@@ -137,29 +148,29 @@ export const storage = {
         ) as HabitRow[];
         if (upd[0]) {
           const del = check(await c.from("habit_completions").delete().eq("habit_id", id).select()) as { points: number }[];
-          await adjustScore(-del.reduce((a, r) => a + r.points, 0));
+          await adjustScore(storage, -del.reduce((a, r) => a + r.points, 0));
         } else check(await c.from("habits").update({ completed: false }).eq("id", id).select());
       }
     } else if (done) {
       const ins = await c.from("habit_completions")
-        .upsert({ habit_id: id, habit_name: h.name, kind: "habit", local_date: today, points: SCORE_PER_COMPLETION },
+        .upsert({ user_id: uid, habit_id: id, habit_name: h.name, kind: "habit", local_date: today, points: SCORE_PER_COMPLETION },
           { onConflict: "habit_id,local_date", ignoreDuplicates: true })
         .select();
       if (ins.error) throw new Error(ins.error.message);
       if ((ins.data ?? []).length > 0) {
-        await adjustScore(SCORE_PER_COMPLETION);
+        await adjustScore(storage, SCORE_PER_COMPLETION);
         check(await c.from("habits").update({ completed_at: new Date().toISOString() }).eq("id", id).select());
       }
     } else {
       const del = check(await c.from("habit_completions").delete().eq("habit_id", id).eq("local_date", today).select()) as { points: number }[];
-      if (del.length) await adjustScore(-del.reduce((a, r) => a + r.points, 0));
+      if (del.length) await adjustScore(storage, -del.reduce((a, r) => a + r.points, 0));
     }
     return storage.getHabit(id, tz);
   },
   // Deleting keeps earned points and completion history (habit_id becomes null).
   async deleteHabit(id: number): Promise<boolean> {
     const c = await db();
-    const rows = check(await c.from("habits").delete().eq("id", id).select()) as HabitRow[];
+    const rows = check(await c.from("habits").delete().eq("id", id).eq("user_id", uid).select()) as HabitRow[];
     return rows.length > 0;
   },
   async getStats(tz = 0) {
@@ -168,7 +179,7 @@ export const storage = {
     const [items, prof, comps] = await Promise.all([
       storage.getHabits(tz),
       storage.getProfile(),
-      c.from("habit_completions").select("local_date").order("local_date", { ascending: false }).limit(2000),
+      c.from("habit_completions").select("local_date").eq("user_id", uid).order("local_date", { ascending: false }).limit(2000),
     ]);
     if (comps.error) throw new Error(comps.error.message);
     const days = new Set((comps.data ?? []).map((r) => r.local_date as string));
@@ -188,7 +199,7 @@ export const storage = {
   },
   async getProfile(): Promise<Profile | undefined> {
     const c = await db();
-    const rows = check(await c.from("profile").select("*").order("id").limit(1)) as ProfRow[];
+    const rows = check(await c.from("profile").select("*").eq("user_id", uid).order("id").limit(1)) as ProfRow[];
     return rows[0] ? toProf(rows[0]) : undefined;
   },
   async updateProfile(u: Partial<InsertProfile>): Promise<Profile> {
@@ -196,7 +207,7 @@ export const storage = {
     const existing = await storage.getProfile();
     if (!existing) {
       const row = check(
-        await c.from("profile").insert({ ...profToRow(u), name: u.name || "User" } as { name: string }).select().single(),
+        await c.from("profile").insert({ ...profToRow(u), user_id: uid, name: u.name || "User" } as { name: string }).select().single(),
       );
       return toProf(row as ProfRow);
     }
@@ -204,6 +215,9 @@ export const storage = {
     return toProf(row as ProfRow);
   },
 };
+return storage;
+}
+export type Storage = ReturnType<typeof storageFor>;
 
 export const SCORE_PER_COMPLETION = 5;
 
@@ -225,4 +239,9 @@ export function zodError(err: unknown) {
   const e = err as { errors?: { message: string; path: (string | number)[] }[] };
   const first = e.errors?.[0];
   return Response.json({ message: first?.message ?? "Invalid input", field: first?.path.join(".") }, { status: 400 });
+}
+
+export async function storageForRequest(request: Request) {
+  const { requireUserId } = await import("./auth.server");
+  return storageFor(await requireUserId(request));
 }
