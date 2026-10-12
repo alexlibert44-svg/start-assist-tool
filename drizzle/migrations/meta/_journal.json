@@ -43,6 +43,13 @@
       "when": 1791811108586,
       "tag": "0005_team_setup_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791812974292,
+      "tag": "0006_plans_planning_workflow",
+      "breakpoints": true
     }
   ]
 }

@@ -170,6 +170,8 @@ export type Database = {
       }
       plans: {
         Row: {
+          approved_at: string | null
+          conversation_id: string | null
           created_at: string
           description: string | null
           end_date: string | null
@@ -180,8 +182,11 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          version: number
         }
         Insert: {
+          approved_at?: string | null
+          conversation_id?: string | null
           created_at?: string
           description?: string | null
           end_date?: string | null
@@ -192,8 +197,11 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          version?: number
         }
         Update: {
+          approved_at?: string | null
+          conversation_id?: string | null
           created_at?: string
           description?: string | null
           end_date?: string | null
@@ -204,6 +212,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          version?: number
         }
         Relationships: []
       }
