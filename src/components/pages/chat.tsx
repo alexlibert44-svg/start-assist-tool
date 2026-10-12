@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { queryClient } from "@/lib/queryClient";
 import { api } from "@/shared/routes";
 import { CommandCenter } from "@/components/command-center";
+import { PlanReview } from "@/components/plan-review";
+import { PLANS_KEY } from "@/hooks/use-plans";
 
 type LocalMessage = {
   id: number;
@@ -38,6 +40,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
   const [initialized, setInitialized] = useState(false);
   const seededFor = useRef<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [reviewSignal, setReviewSignal] = useState(0);
 
   // Seed from server once when data first arrives
   useEffect(() => {
@@ -93,7 +96,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
     if (initialized && seededFor.current === conversationId && pendingHandoff && pendingHandoff.conversationId === conversationId && !isAiTyping) {
       const h = pendingHandoff;
       clearHandoff();
-      void sendText(h.question, h.from);
+      void sendText(h.question, h.from === h.to ? undefined : h.from);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized, pendingHandoff, conversationId]);
@@ -152,6 +155,9 @@ export default function ChatPage({ conversationId }: { conversationId: string })
             queryClient.invalidateQueries({ queryKey: [api.habits.list.path] });
             queryClient.invalidateQueries({ queryKey: [api.profile.get.path] });
             queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+          }
+          if (data.planChanged) {
+            void queryClient.invalidateQueries({ queryKey: PLANS_KEY }).then(() => setReviewSignal((n) => n + 1));
           }
           if (data.handoff?.character && data.handoff?.question && data.handoff?.conversationId) handoffTarget = data.handoff;
           if (data.reply && typeof data.reply === "string" && data.reply.trim()) {
@@ -219,7 +225,12 @@ export default function ChatPage({ conversationId }: { conversationId: string })
         </div>
       )}
 
-      {character.id === "Larry" && <CommandCenter />}
+      {character.id === "Larry" && (
+        <>
+          <CommandCenter planningStarted={convData?.conversation.metadata["planning"] === "first_week"} />
+          <PlanReview conversationId={conversationId} openSignal={reviewSignal} />
+        </>
+      )}
       {/* Messages Area */}
       <div
         ref={scrollRef}
