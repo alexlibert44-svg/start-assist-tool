@@ -12,11 +12,14 @@ export type OnboardingProfile = {
 };
 
 /** Where a visitor should go next, based on their session and saved onboarding progress. */
-export async function nextOnboardingPath(): Promise<"/welcome" | "/onboarding" | "app"> {
+export async function nextOnboardingPath(): Promise<"/welcome" | "/onboarding" | "/team-setup" | "app"> {
   const { data } = await supabase.auth.getSession();
   if (!data.session) return "/welcome";
   const res = await fetch("/api/profile");
   if (!res.ok) return "/onboarding";
   const p = (await res.json()) as OnboardingProfile;
-  return p.onboardingCompleted && (p.onboardingStep ?? 0) >= 7 ? "app" : "/onboarding";
+  if (!(p.onboardingCompleted && (p.onboardingStep ?? 0) >= 7)) return "/onboarding";
+  const t = await fetch("/api/team-setup");
+  if (!t.ok) return "app";
+  return ((await t.json()) as { completedAt: string | null }).completedAt ? "app" : "/team-setup";
 }

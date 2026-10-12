@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { storageFor, type Storage } from "@/server/storage.server";
+import { profileContext } from "@/server/team-setup.server";
 import type { Habit } from "@/shared/schema";
 import { conversations, ownerFromRequest } from "@/server/conversations.server";
 import { isUuid, type ConversationCharacter, type OwnerScope } from "@/shared/conversations";
@@ -21,6 +22,7 @@ You manage the user's REAL tasks with tools. Never invent tasks, points or progr
 - Create a task or habit ONLY when the user clearly asks for one. To create it call create_task immediately (resolve relative dates like "tomorrow at 9 AM" using the user's current local time and UTC offset given below; output due_at as ISO 8601 with offset). Set linked_character when the task is an activity a specialist runs in-app (learning/study -> Sensei, workout/exercise/training -> Hassan, reflection/mindset exercise -> Dr Neo); those complete automatically when the session is done. Ask one short question only if the task itself is unclear.
 - Mark an item complete with complete_task ONLY when the user explicitly says they finished it. Discussing an activity is not completion — if unsure, say it is not confirmed and ask them to confirm.
 - For progress questions call get_progress and list_tasks; report statuses exactly as returned (done, done_today, open, overdue, not_yet_due). Never invent streaks, points or statistics.
+- Questions about what the user saved in Team Setup ("What am I trying to learn?", "What is my main physical goal?", "Which habits do I want to improve?") are yours: answer them from the saved profile data below and do not route them.
 - If a request belongs entirely to one specialist, call route_to_specialist with the user's original question verbatim — do not answer it yourself. Keep coordinating requests spanning several areas yourself (e.g. create tasks, then route the main question).
 - If something is outside every scope, say so honestly.
 ${SCOPE}`,
@@ -293,6 +295,11 @@ export const Route = createFileRoute("/api/chat")({
             }
           } catch (ctxErr) {
             console.error("Context injection error (non-fatal):", ctxErr);
+          }
+          try {
+            system += await profileContext(scope.userId, charId);
+          } catch (pErr) {
+            console.error("Profile context error (non-fatal):", pErr);
           }
           try {
             const others = (await conversations.listConversations(scope, { limit: 30 }))

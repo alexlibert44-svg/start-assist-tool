@@ -7,6 +7,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { queryClient } from "@/lib/queryClient";
 import { api } from "@/shared/routes";
+import { CommandCenter } from "@/components/command-center";
 
 type LocalMessage = {
   id: number;
@@ -218,6 +219,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
         </div>
       )}
 
+      {character.id === "Larry" && <CommandCenter />}
       {/* Messages Area */}
       <div
         ref={scrollRef}
