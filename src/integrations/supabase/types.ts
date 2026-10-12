@@ -53,6 +53,7 @@ export type Database = {
           kind: string
           local_date: string
           points: number
+          user_id: string | null
         }
         Insert: {
           completed_at?: string
@@ -62,6 +63,7 @@ export type Database = {
           kind: string
           local_date: string
           points: number
+          user_id?: string | null
         }
         Update: {
           completed_at?: string
@@ -71,6 +73,7 @@ export type Database = {
           kind?: string
           local_date?: string
           points?: number
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -94,6 +97,7 @@ export type Database = {
           name: string
           points_awarded: boolean
           streak: number | null
+          user_id: string | null
         }
         Insert: {
           completed?: boolean | null
@@ -106,6 +110,7 @@ export type Database = {
           name: string
           points_awarded?: boolean
           streak?: number | null
+          user_id?: string | null
         }
         Update: {
           completed?: boolean | null
@@ -118,6 +123,7 @@ export type Database = {
           name?: string
           points_awarded?: boolean
           streak?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -130,6 +136,7 @@ export type Database = {
           id: number
           metadata: Json
           sender: string
+          user_id: string | null
         }
         Insert: {
           character_id: string
@@ -139,6 +146,7 @@ export type Database = {
           id?: number
           metadata?: Json
           sender: string
+          user_id?: string | null
         }
         Update: {
           character_id?: string
@@ -148,6 +156,7 @@ export type Database = {
           id?: number
           metadata?: Json
           sender?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -159,32 +168,95 @@ export type Database = {
           },
         ]
       }
+      plans: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          schedule: Json
+          start_date: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          schedule?: Json
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          schedule?: Json
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profile: {
         Row: {
+          biggest_challenge: string | null
+          current_situation: string | null
           focus_sessions: number | null
           id: number
           level: number | null
           member_since: string | null
           name: string
+          onboarding_completed: boolean
+          onboarding_step: number
           phone_time: number | null
+          phone_usage: string | null
+          preferred_name: string | null
+          primary_goal: string | null
+          user_id: string | null
           xp: number | null
         }
         Insert: {
+          biggest_challenge?: string | null
+          current_situation?: string | null
           focus_sessions?: number | null
           id?: number
           level?: number | null
           member_since?: string | null
           name: string
+          onboarding_completed?: boolean
+          onboarding_step?: number
           phone_time?: number | null
+          phone_usage?: string | null
+          preferred_name?: string | null
+          primary_goal?: string | null
+          user_id?: string | null
           xp?: number | null
         }
         Update: {
+          biggest_challenge?: string | null
+          current_situation?: string | null
           focus_sessions?: number | null
           id?: number
           level?: number | null
           member_since?: string | null
           name?: string
+          onboarding_completed?: boolean
+          onboarding_step?: number
           phone_time?: number | null
+          phone_usage?: string | null
+          preferred_name?: string | null
+          primary_goal?: string | null
+          user_id?: string | null
           xp?: number | null
         }
         Relationships: []
