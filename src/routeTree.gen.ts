@@ -31,8 +31,11 @@ import { Route as AuthenticatedChatConversationIdRouteImport } from './routes/_a
 import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations.$id'
 import { Route as ApiHabitsIdRouteImport } from './routes/api/habits.$id'
 import { Route as ApiMessagesClearRouteImport } from './routes/api/messages.clear'
+import { Route as ApiPlansIdRouteImport } from './routes/api/plans.$id'
+import { Route as ApiPlansStartRouteImport } from './routes/api/plans.start'
 import { Route as ApiTeamSetupKindRouteImport } from './routes/api/team-setup.$kind'
 import { Route as ApiConversationsIdMessagesRouteImport } from './routes/api/conversations.$id.messages'
+import { Route as ApiPlansIdApproveRouteImport } from './routes/api/plans.$id.approve'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -144,6 +147,16 @@ const ApiMessagesClearRoute = ApiMessagesClearRouteImport.update({
   path: '/clear',
   getParentRoute: () => ApiMessagesRoute,
 } as any)
+const ApiPlansIdRoute = ApiPlansIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiPlansRoute,
+} as any)
+const ApiPlansStartRoute = ApiPlansStartRouteImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => ApiPlansRoute,
+} as any)
 const ApiTeamSetupKindRoute = ApiTeamSetupKindRouteImport.update({
   id: '/$kind',
   path: '/$kind',
@@ -155,6 +168,11 @@ const ApiConversationsIdMessagesRoute =
     path: '/messages',
     getParentRoute: () => ApiConversationsIdRoute,
   } as any)
+const ApiPlansIdApproveRoute = ApiPlansIdApproveRouteImport.update({
+  id: '/approve',
+  path: '/approve',
+  getParentRoute: () => ApiPlansIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -170,7 +188,7 @@ export interface FileRoutesByFullPath {
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
-  '/api/plans': typeof ApiPlansRoute
+  '/api/plans': typeof ApiPlansRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
   '/api/stats': typeof ApiStatsRoute
   '/api/team-setup': typeof ApiTeamSetupRouteWithChildren
@@ -178,8 +196,11 @@ export interface FileRoutesByFullPath {
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
+  '/api/plans/$id': typeof ApiPlansIdRouteWithChildren
+  '/api/plans/start': typeof ApiPlansStartRoute
   '/api/team-setup/$kind': typeof ApiTeamSetupKindRoute
   '/api/conversations/$id/messages': typeof ApiConversationsIdMessagesRoute
+  '/api/plans/$id/approve': typeof ApiPlansIdApproveRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -195,7 +216,7 @@ export interface FileRoutesByTo {
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
-  '/api/plans': typeof ApiPlansRoute
+  '/api/plans': typeof ApiPlansRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
   '/api/stats': typeof ApiStatsRoute
   '/api/team-setup': typeof ApiTeamSetupRouteWithChildren
@@ -203,8 +224,11 @@ export interface FileRoutesByTo {
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
+  '/api/plans/$id': typeof ApiPlansIdRouteWithChildren
+  '/api/plans/start': typeof ApiPlansStartRoute
   '/api/team-setup/$kind': typeof ApiTeamSetupKindRoute
   '/api/conversations/$id/messages': typeof ApiConversationsIdMessagesRoute
+  '/api/plans/$id/approve': typeof ApiPlansIdApproveRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -222,7 +246,7 @@ export interface FileRoutesById {
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
-  '/api/plans': typeof ApiPlansRoute
+  '/api/plans': typeof ApiPlansRouteWithChildren
   '/api/profile': typeof ApiProfileRoute
   '/api/stats': typeof ApiStatsRoute
   '/api/team-setup': typeof ApiTeamSetupRouteWithChildren
@@ -230,8 +254,11 @@ export interface FileRoutesById {
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
+  '/api/plans/$id': typeof ApiPlansIdRouteWithChildren
+  '/api/plans/start': typeof ApiPlansStartRoute
   '/api/team-setup/$kind': typeof ApiTeamSetupKindRoute
   '/api/conversations/$id/messages': typeof ApiConversationsIdMessagesRoute
+  '/api/plans/$id/approve': typeof ApiPlansIdApproveRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -257,8 +284,11 @@ export interface FileRouteTypes {
     | '/api/conversations/$id'
     | '/api/habits/$id'
     | '/api/messages/clear'
+    | '/api/plans/$id'
+    | '/api/plans/start'
     | '/api/team-setup/$kind'
     | '/api/conversations/$id/messages'
+    | '/api/plans/$id/approve'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -282,8 +312,11 @@ export interface FileRouteTypes {
     | '/api/conversations/$id'
     | '/api/habits/$id'
     | '/api/messages/clear'
+    | '/api/plans/$id'
+    | '/api/plans/start'
     | '/api/team-setup/$kind'
     | '/api/conversations/$id/messages'
+    | '/api/plans/$id/approve'
   id:
     | '__root__'
     | '/'
@@ -308,8 +341,11 @@ export interface FileRouteTypes {
     | '/api/conversations/$id'
     | '/api/habits/$id'
     | '/api/messages/clear'
+    | '/api/plans/$id'
+    | '/api/plans/start'
     | '/api/team-setup/$kind'
     | '/api/conversations/$id/messages'
+    | '/api/plans/$id/approve'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -321,7 +357,7 @@ export interface RootRouteChildren {
   ApiConversationsRoute: typeof ApiConversationsRouteWithChildren
   ApiHabitsRoute: typeof ApiHabitsRouteWithChildren
   ApiMessagesRoute: typeof ApiMessagesRouteWithChildren
-  ApiPlansRoute: typeof ApiPlansRoute
+  ApiPlansRoute: typeof ApiPlansRouteWithChildren
   ApiProfileRoute: typeof ApiProfileRoute
   ApiStatsRoute: typeof ApiStatsRoute
   ApiTeamSetupRoute: typeof ApiTeamSetupRouteWithChildren
@@ -483,6 +519,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMessagesClearRouteImport
       parentRoute: typeof ApiMessagesRoute
     }
+    '/api/plans/$id': {
+      id: '/api/plans/$id'
+      path: '/$id'
+      fullPath: '/api/plans/$id'
+      preLoaderRoute: typeof ApiPlansIdRouteImport
+      parentRoute: typeof ApiPlansRoute
+    }
+    '/api/plans/start': {
+      id: '/api/plans/start'
+      path: '/start'
+      fullPath: '/api/plans/start'
+      preLoaderRoute: typeof ApiPlansStartRouteImport
+      parentRoute: typeof ApiPlansRoute
+    }
     '/api/team-setup/$kind': {
       id: '/api/team-setup/$kind'
       path: '/$kind'
@@ -496,6 +546,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/conversations/$id/messages'
       preLoaderRoute: typeof ApiConversationsIdMessagesRouteImport
       parentRoute: typeof ApiConversationsIdRoute
+    }
+    '/api/plans/$id/approve': {
+      id: '/api/plans/$id/approve'
+      path: '/approve'
+      fullPath: '/api/plans/$id/approve'
+      preLoaderRoute: typeof ApiPlansIdApproveRouteImport
+      parentRoute: typeof ApiPlansIdRoute
     }
   }
 }
@@ -569,6 +626,32 @@ const ApiMessagesRouteWithChildren = ApiMessagesRoute._addFileChildren(
   ApiMessagesRouteChildren,
 )
 
+interface ApiPlansIdRouteChildren {
+  ApiPlansIdApproveRoute: typeof ApiPlansIdApproveRoute
+}
+
+const ApiPlansIdRouteChildren: ApiPlansIdRouteChildren = {
+  ApiPlansIdApproveRoute: ApiPlansIdApproveRoute,
+}
+
+const ApiPlansIdRouteWithChildren = ApiPlansIdRoute._addFileChildren(
+  ApiPlansIdRouteChildren,
+)
+
+interface ApiPlansRouteChildren {
+  ApiPlansIdRoute: typeof ApiPlansIdRouteWithChildren
+  ApiPlansStartRoute: typeof ApiPlansStartRoute
+}
+
+const ApiPlansRouteChildren: ApiPlansRouteChildren = {
+  ApiPlansIdRoute: ApiPlansIdRouteWithChildren,
+  ApiPlansStartRoute: ApiPlansStartRoute,
+}
+
+const ApiPlansRouteWithChildren = ApiPlansRoute._addFileChildren(
+  ApiPlansRouteChildren,
+)
+
 interface ApiTeamSetupRouteChildren {
   ApiTeamSetupKindRoute: typeof ApiTeamSetupKindRoute
 }
@@ -590,7 +673,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiConversationsRoute: ApiConversationsRouteWithChildren,
   ApiHabitsRoute: ApiHabitsRouteWithChildren,
   ApiMessagesRoute: ApiMessagesRouteWithChildren,
-  ApiPlansRoute: ApiPlansRoute,
+  ApiPlansRoute: ApiPlansRouteWithChildren,
   ApiProfileRoute: ApiProfileRoute,
   ApiStatsRoute: ApiStatsRoute,
   ApiTeamSetupRoute: ApiTeamSetupRouteWithChildren,
