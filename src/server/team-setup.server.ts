@@ -74,6 +74,7 @@ export async function profileContext(uid: string, charId: string): Promise<strin
   if (visible.length) {
     out += `\n\nThe user's saved setup answers (self-reported, not clinical; use them to ground answers, never invent beyond them):\n` +
       visible.map((s) => `${s.kind} profile (${s.character}): ${JSON.stringify(s.answers)}`).join("\n");
+    if (charId === "Larry") out += `\nWhen the user asks what is in their saved profiles (e.g. what they are learning, their physical goal, habits they want to improve), answer directly from this data yourself — do not route that question to a specialist.`;
     if (visible.some((s) => s.kind === "development")) out += `\nhabitsToBuild are proposals only — never create them as habits unless the user explicitly confirms.`;
   } else if (charId !== "Larry") out += `\n\nThe user has not completed your setup profile yet.`;
   return out;
