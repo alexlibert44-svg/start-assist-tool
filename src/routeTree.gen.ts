@@ -10,12 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedHabitsRouteImport } from './routes/_authenticated/habits'
 import { Route as AuthenticatedProgressRouteImport } from './routes/_authenticated/progress'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
 import { Route as ApiHabitsRouteImport } from './routes/api/habits'
 import { Route as ApiMessagesRouteImport } from './routes/api/messages'
+import { Route as ApiPlansRouteImport } from './routes/api/plans'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as ApiStatsRouteImport } from './routes/api/stats'
 import { Route as AuthenticatedChatConversationIdRouteImport } from './routes/_authenticated/chat.$conversationId'
@@ -29,15 +31,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedHabitsRoute = AuthenticatedHabitsRouteImport.update({
-  id: '/_authenticated/habits',
-  path: '/habits',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedHabitsRoute = AuthenticatedHabitsRouteImport.update({
+  id: '/habits',
+  path: '/habits',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedProgressRoute = AuthenticatedProgressRouteImport.update({
-  id: '/_authenticated/progress',
+  id: '/progress',
   path: '/progress',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
@@ -59,6 +65,11 @@ const ApiMessagesRoute = ApiMessagesRouteImport.update({
   path: '/api/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPlansRoute = ApiPlansRouteImport.update({
+  id: '/api/plans',
+  path: '/api/plans',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProfileRoute = ApiProfileRouteImport.update({
   id: '/api/profile',
   path: '/api/profile',
@@ -71,9 +82,9 @@ const ApiStatsRoute = ApiStatsRouteImport.update({
 } as any)
 const AuthenticatedChatConversationIdRoute =
   AuthenticatedChatConversationIdRouteImport.update({
-    id: '/_authenticated/chat/$conversationId',
+    id: '/chat/$conversationId',
     path: '/chat/$conversationId',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const ApiConversationsIdRoute = ApiConversationsIdRouteImport.update({
   id: '/$id',
@@ -105,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
+  '/api/plans': typeof ApiPlansRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/stats': typeof ApiStatsRoute
   '/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
@@ -121,6 +133,7 @@ export interface FileRoutesByTo {
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
+  '/api/plans': typeof ApiPlansRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/stats': typeof ApiStatsRoute
   '/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
@@ -132,12 +145,14 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/habits': typeof AuthenticatedHabitsRoute
   '/_authenticated/progress': typeof AuthenticatedProgressRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
   '/api/messages': typeof ApiMessagesRouteWithChildren
+  '/api/plans': typeof ApiPlansRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/stats': typeof ApiStatsRoute
   '/_authenticated/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
@@ -156,6 +171,7 @@ export interface FileRouteTypes {
     | '/api/conversations'
     | '/api/habits'
     | '/api/messages'
+    | '/api/plans'
     | '/api/profile'
     | '/api/stats'
     | '/chat/$conversationId'
@@ -172,6 +188,7 @@ export interface FileRouteTypes {
     | '/api/conversations'
     | '/api/habits'
     | '/api/messages'
+    | '/api/plans'
     | '/api/profile'
     | '/api/stats'
     | '/chat/$conversationId'
@@ -182,12 +199,14 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/_authenticated/habits'
     | '/_authenticated/progress'
     | '/api/chat'
     | '/api/conversations'
     | '/api/habits'
     | '/api/messages'
+    | '/api/plans'
     | '/api/profile'
     | '/api/stats'
     | '/_authenticated/chat/$conversationId'
@@ -199,15 +218,14 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthenticatedHabitsRoute: typeof AuthenticatedHabitsRoute
-  AuthenticatedProgressRoute: typeof AuthenticatedProgressRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   ApiChatRoute: typeof ApiChatRoute
   ApiConversationsRoute: typeof ApiConversationsRouteWithChildren
   ApiHabitsRoute: typeof ApiHabitsRouteWithChildren
   ApiMessagesRoute: typeof ApiMessagesRouteWithChildren
+  ApiPlansRoute: typeof ApiPlansRoute
   ApiProfileRoute: typeof ApiProfileRoute
   ApiStatsRoute: typeof ApiStatsRoute
-  AuthenticatedChatConversationIdRoute: typeof AuthenticatedChatConversationIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -219,19 +237,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/habits': {
       id: '/_authenticated/habits'
       path: '/habits'
       fullPath: '/habits'
       preLoaderRoute: typeof AuthenticatedHabitsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/progress': {
       id: '/_authenticated/progress'
       path: '/progress'
       fullPath: '/progress'
       preLoaderRoute: typeof AuthenticatedProgressRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/chat': {
       id: '/api/chat'
@@ -261,6 +286,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/plans': {
+      id: '/api/plans'
+      path: '/api/plans'
+      fullPath: '/api/plans'
+      preLoaderRoute: typeof ApiPlansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/profile': {
       id: '/api/profile'
       path: '/api/profile'
@@ -280,7 +312,7 @@ declare module '@tanstack/react-router' {
       path: '/chat/$conversationId'
       fullPath: '/chat/$conversationId'
       preLoaderRoute: typeof AuthenticatedChatConversationIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/conversations/$id': {
       id: '/api/conversations/$id'
@@ -312,6 +344,21 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedHabitsRoute: typeof AuthenticatedHabitsRoute
+  AuthenticatedProgressRoute: typeof AuthenticatedProgressRoute
+  AuthenticatedChatConversationIdRoute: typeof AuthenticatedChatConversationIdRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedHabitsRoute: AuthenticatedHabitsRoute,
+  AuthenticatedProgressRoute: AuthenticatedProgressRoute,
+  AuthenticatedChatConversationIdRoute: AuthenticatedChatConversationIdRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface ApiConversationsIdRouteChildren {
   ApiConversationsIdMessagesRoute: typeof ApiConversationsIdMessagesRoute
@@ -361,15 +408,14 @@ const ApiMessagesRouteWithChildren = ApiMessagesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthenticatedHabitsRoute: AuthenticatedHabitsRoute,
-  AuthenticatedProgressRoute: AuthenticatedProgressRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   ApiChatRoute: ApiChatRoute,
   ApiConversationsRoute: ApiConversationsRouteWithChildren,
   ApiHabitsRoute: ApiHabitsRouteWithChildren,
   ApiMessagesRoute: ApiMessagesRouteWithChildren,
+  ApiPlansRoute: ApiPlansRoute,
   ApiProfileRoute: ApiProfileRoute,
   ApiStatsRoute: ApiStatsRoute,
-  AuthenticatedChatConversationIdRoute: AuthenticatedChatConversationIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
