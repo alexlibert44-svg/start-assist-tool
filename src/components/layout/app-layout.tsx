@@ -14,7 +14,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { MessageSquarePlus, CheckCircle2, TrendingUp, Users } from "lucide-react";
+import { MessageSquarePlus, CheckCircle2, TrendingUp, Users, UserCircle, ClipboardList } from "lucide-react";
 import { useOpenCharacter } from "@/hooks/use-conversations";
 import { ConversationList } from "@/components/layout/conversation-list";
 import { toast } from "@/hooks/use-toast";
@@ -28,6 +28,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const larryOnlyNav = [
     { title: "Habit Tracker", url: "/habits", icon: CheckCircle2 },
     { title: "Points / Progress", url: "/progress", icon: TrendingUp },
+    { title: "Profile", url: "/profile", icon: UserCircle },
+    { title: "Plans", url: "/plans", icon: ClipboardList },
   ];
 
   const openCharacter = useOpenCharacter();
@@ -46,6 +48,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
       setCreating(false);
     }
   };
+
+  // Splash, welcome, sign-in and onboarding screens render without the sidebar.
+  if (["/", "/welcome", "/auth", "/onboarding"].includes(location)) {
+    return (
+      <div className="flex min-h-screen w-full flex-col bg-[#05050A] text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/30 via-[#05050A] to-[#05050A] pointer-events-none" />
+        <main className="relative z-10 flex flex-1 flex-col min-h-screen">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>

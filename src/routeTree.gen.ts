@@ -14,6 +14,9 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AuthenticatedHabitsRouteImport } from './routes/_authenticated/habits'
+import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedPlansRouteImport } from './routes/_authenticated/plans'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedProgressRouteImport } from './routes/_authenticated/progress'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
@@ -50,6 +53,21 @@ const WelcomeRoute = WelcomeRouteImport.update({
 const AuthenticatedHabitsRoute = AuthenticatedHabitsRouteImport.update({
   id: '/habits',
   path: '/habits',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPlansRoute = AuthenticatedPlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProgressRoute = AuthenticatedProgressRouteImport.update({
@@ -125,6 +143,9 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/welcome': typeof WelcomeRoute
   '/habits': typeof AuthenticatedHabitsRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/plans': typeof AuthenticatedPlansRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/progress': typeof AuthenticatedProgressRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
@@ -144,6 +165,9 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/welcome': typeof WelcomeRoute
   '/habits': typeof AuthenticatedHabitsRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/plans': typeof AuthenticatedPlansRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/progress': typeof AuthenticatedProgressRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
@@ -165,6 +189,9 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/welcome': typeof WelcomeRoute
   '/_authenticated/habits': typeof AuthenticatedHabitsRoute
+  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/plans': typeof AuthenticatedPlansRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/progress': typeof AuthenticatedProgressRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
@@ -186,6 +213,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/welcome'
     | '/habits'
+    | '/onboarding'
+    | '/plans'
+    | '/profile'
     | '/progress'
     | '/api/chat'
     | '/api/conversations'
@@ -205,6 +235,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/welcome'
     | '/habits'
+    | '/onboarding'
+    | '/plans'
+    | '/profile'
     | '/progress'
     | '/api/chat'
     | '/api/conversations'
@@ -225,6 +258,9 @@ export interface FileRouteTypes {
     | '/auth'
     | '/welcome'
     | '/_authenticated/habits'
+    | '/_authenticated/onboarding'
+    | '/_authenticated/plans'
+    | '/_authenticated/profile'
     | '/_authenticated/progress'
     | '/api/chat'
     | '/api/conversations'
@@ -289,6 +325,27 @@ declare module '@tanstack/react-router' {
       path: '/habits'
       fullPath: '/habits'
       preLoaderRoute: typeof AuthenticatedHabitsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/onboarding': {
+      id: '/_authenticated/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/plans': {
+      id: '/_authenticated/plans'
+      path: '/plans'
+      fullPath: '/plans'
+      preLoaderRoute: typeof AuthenticatedPlansRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/progress': {
@@ -387,12 +444,18 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedHabitsRoute: typeof AuthenticatedHabitsRoute
+  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedPlansRoute: typeof AuthenticatedPlansRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedProgressRoute: typeof AuthenticatedProgressRoute
   AuthenticatedChatConversationIdRoute: typeof AuthenticatedChatConversationIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHabitsRoute: AuthenticatedHabitsRoute,
+  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedPlansRoute: AuthenticatedPlansRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedProgressRoute: AuthenticatedProgressRoute,
   AuthenticatedChatConversationIdRoute: AuthenticatedChatConversationIdRoute,
 }
