@@ -1,0 +1,2 @@
+ALTER TABLE public.profile ADD COLUMN IF NOT EXISTS agent_workflows jsonb NOT NULL DEFAULT '{}'::jsonb;
+COMMENT ON COLUMN public.profile.agent_workflows IS 'Validated AI question history and answers for resumable onboarding and specialist setup; profile data remains in existing canonical columns and specialist_profiles.';
