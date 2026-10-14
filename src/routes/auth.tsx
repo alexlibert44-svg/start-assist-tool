@@ -30,7 +30,22 @@ function AuthPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => { if (data.user) navigate({ to: "/", replace: true }); });
     const { data } = supabase.auth.onAuthStateChange((_e, session) => { if (session) navigate({ to: "/", replace: true }); });
-    return (
+    return () => data.subscription.unsubscribe();
+  }, [navigate]);
+
+  const google = async () => {
+    setBusy(true); setError(null);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+      if (result.error) { setError("Google sign-in did not complete. Please try again."); setBusy(false); return; }
+      if (result.redirected) return;
+      const { data } = await supabase.auth.getUser();
+      if (data.user) navigate({ to: "/", replace: true });
+      else { setError("Sign-in did not complete. Please try again."); setBusy(false); }
+    } catch { setError("Could not connect to Google. Please try again."); setBusy(false); }
+  };
+
+  return (
     <div className="agent-larry min-h-screen px-6 py-8 sm:py-12 flex flex-col">
       <Link to="/welcome" className="inline-flex items-center gap-2 text-muted-foreground text-sm w-fit"><ArrowLeft className="h-4 w-4" />Back</Link>
       <div className="flex-1 flex items-center justify-center py-10">

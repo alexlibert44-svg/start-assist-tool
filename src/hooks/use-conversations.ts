@@ -53,12 +53,12 @@ export function useConversation(id: string) {
   });
 }
 
-export async function addMessageRequest(conversationId: string, sender: string, content: string) {
+export async function addMessageRequest(conversationId: string, sender: string, content: string, metadata: Record<string, unknown> = {}) {
   return json<ConversationMessage>(
     await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sender, content }),
+      body: JSON.stringify({ sender, content, metadata }),
     }),
     "Failed to save message",
   );

@@ -8,6 +8,8 @@ import { isUuid, type ConversationCharacter, type OwnerScope } from "@/shared/co
 import { getDraft, PlanError, saveDraft } from "@/server/plans.server";
 import { localDate } from "@/server/storage.server";
 import { dayName, PLAN_CATEGORIES, PLAN_CHARACTERS, type RawItem } from "@/shared/plans";
+import { generateQuestions } from "@/server/agent-questions.server";
+import type { AgentQuestion } from "@/shared/agent-questions";
 
 const MODEL = "google/gemini-3-flash-preview";
 
@@ -326,6 +328,7 @@ export const Route = createFileRoute("/api/chat")({
           const storage = storageFor(scope.userId);
           const ctx: Ctx = { storage, charId, tz: typeof tzOffsetMinutes === "number" ? tzOffsetMinutes : 0, scope, conversationId: isUuid(conversationId) ? conversationId : null, handoff: null, changed: false, planChanged: false };
 
+          let planningMode = false;
           let system = CHARACTER_SYSTEM_PROMPTS[charId] + "\n\nAlways reply in the same language as the user's latest message (e.g. English question -> English answer), regardless of earlier messages or the user's location.";
           const off = typeof tzOffsetMinutes === "number" ? -tzOffsetMinutes : 0;
           const sign = off >= 0 ? "+" : "-";
@@ -365,6 +368,7 @@ export const Route = createFileRoute("/api/chat")({
               const draft = await getDraft(scope.userId);
               const today = localDate(ctx.tz);
               if (conv?.metadata["planning"] === "first_week" || draft) {
+                planningMode = true;
                 system += `\n\n${PLANNING_PROMPT}\nToday's local date: ${today} (${dayName(today)}). The week starts on ${today} unless the user asks otherwise.`;
                 system += draft ? `\nCurrent proposal (draft, NOT approved) v${draft.version}, ${draft.startDate}..${draft.endDate}: ${JSON.stringify(draft.schedule.map(({ completed: _c, planVersion: _v, ...rest }) => rest))}` : `\nNo proposal has been generated yet.`;
               }
@@ -405,7 +409,13 @@ export const Route = createFileRoute("/api/chat")({
               : ctx.changed ? "Done. Your task list and points have been updated."
               : "I'm here. What's the task?";
           }
-          return Response.json({ reply, handoff: ctx.handoff, dataChanged: ctx.changed, planChanged: ctx.planChanged });
+          let questions: AgentQuestion[] = [];
+          let questionError: string | null = null;
+          if (planningMode && !ctx.planChanged && !ctx.handoff) {
+            try { questions = await generateQuestions(scope.userId, "planning", "lifestyle", { history, latestMessage: message, latestReply: reply }, request.signal); }
+            catch { questionError = "Answer choices could not be prepared. You can still reply to Larry below."; }
+          }
+          return Response.json({ reply, questions, questionError, handoff: ctx.handoff, dataChanged: ctx.changed, planChanged: ctx.planChanged });
         } catch (error) {
           console.error("CHAT ERROR:", error);
           return Response.json({ reply: "Temporary error, please try again. Nothing was saved from this message." }, { status: 200 });
