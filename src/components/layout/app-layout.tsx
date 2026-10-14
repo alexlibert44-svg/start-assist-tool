@@ -49,6 +49,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
     }
   };
 
+  if (location === "/auth") return <main className="auth-screen agent-larry min-h-screen w-full">{children}</main>;
+
   // Splash, welcome, sign-in and onboarding screens render without the sidebar.
   if (["/", "/welcome", "/auth", "/onboarding"].includes(location)) {
     return (
