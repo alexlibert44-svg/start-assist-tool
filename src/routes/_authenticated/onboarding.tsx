@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { CHARACTERS, type CharacterId } from "@/store/use-character";
 import { createConversationRequest, fetchConversations } from "@/hooks/use-conversations";
-import { GOALS, CHALLENGES, PHONE_USAGE, SITUATIONS } from "@/lib/onboarding";
+import { AgentQuestionStep, answerValid, saveQuestionProgress } from "@/components/agent-question";
+import type { AgentQuestion } from "@/shared/agent-questions";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({
@@ -26,10 +27,10 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 type Answers = { preferredName: string; primaryGoal: string; biggestChallenge: string; phoneUsage: string; currentSituation: string };
 const QUESTIONS: { key: keyof Answers; title: string; options?: string[] }[] = [
   { key: "preferredName", title: "What should we call you?" },
-  { key: "primaryGoal", title: "What is your main goal right now?", options: GOALS },
-  { key: "biggestChallenge", title: "What is your biggest challenge?", options: CHALLENGES },
-  { key: "phoneUsage", title: "About how much time do you spend on your phone each day?", options: PHONE_USAGE },
-  { key: "currentSituation", title: "Which best describes your situation?", options: SITUATIONS },
+  { key: "primaryGoal", title: "What is your main goal right now?", options: [] },
+  { key: "biggestChallenge", title: "What is your biggest challenge?", options: [] },
+  { key: "phoneUsage", title: "About how much time do you spend on your phone each day?", options: [] },
+  { key: "currentSituation", title: "Which best describes your situation?", options: [] },
 ];
 const ANALYSIS = 5, TEAM = 6, DONE = 7;
 
@@ -39,6 +40,7 @@ function Onboarding() {
   const update = useUpdateProfile();
   const [step, setStep] = useState<number | null>(null);
   const [a, setA] = useState<Answers>({ preferredName: "", primaryGoal: "", biggestChallenge: "", phoneUsage: "", currentSituation: "" });
+  const [readyQuestion, setReadyQuestion] = useState<AgentQuestion | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Restore saved answers and progress.
@@ -53,7 +55,7 @@ function Onboarding() {
   }, [profile, step]);
 
   if (isLoading || step === null) {
-    return <div className="flex-1 flex items-center justify-center text-white/40 text-sm">Loading your progress...</div>;
+    return <div className="flex-1 flex items-center justify-center text-foreground/40 text-sm">Loading your progress...</div>;
   }
 
   const save = async (patch: Record<string, unknown>) => {
@@ -65,62 +67,35 @@ function Onboarding() {
   const q = QUESTIONS[step];
   const value = q ? a[q.key].trim() : "";
   const next = async () => {
-    if (!q || !value) return;
+    if (!q || !readyQuestion || !answerValid(readyQuestion, a[q.key])) return;
+    try { await saveQuestionProgress("onboarding", a, step + 1); } catch (e) { setError((e as Error).message); return; }
     const nextStep = step + 1;
     if (await save({ [q.key]: value, ...(q.key === "preferredName" ? { name: value } : {}), onboardingStep: nextStep })) setStep(nextStep);
   };
 
   return (
     <div className="flex-1 overflow-y-auto flex items-center justify-center px-4 py-8">
-      <div className="glass-panel w-full max-w-xl p-6 sm:p-8">
+      <div className="agent-larry glass-panel w-full max-w-xl p-6 sm:p-8">
         {q && (
           <>
-            <div className="flex items-center justify-between text-xs text-white/50 mb-2">
+            <div className="flex items-center justify-between text-xs text-foreground/50 mb-2">
               <span>Question {step + 1} of {QUESTIONS.length}</span>
               <span>{Math.round((step / QUESTIONS.length) * 100)}%</span>
             </div>
-            <div className="h-1.5 rounded-full bg-white/10 mb-6 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-purple-600 to-indigo-600 transition-all" style={{ width: `${(step / QUESTIONS.length) * 100}%` }} />
+            <div className="h-1.5 rounded-full bg-foreground/10 mb-6 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-agent to-agent agent-gradient transition-all" style={{ width: `${(step / QUESTIONS.length) * 100}%` }} />
             </div>
             <AnimatePresence mode="wait">
               <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                <h2 className="font-display text-xl sm:text-2xl font-bold text-white mb-5">{q.title}</h2>
-                {q.options ? (
-                  <div role="radiogroup" className="grid gap-2">
-                    {q.options.map((o) => {
-                      const sel = a[q.key] === o;
-                      return (
-                        <button
-                          key={o}
-                          role="radio"
-                          aria-checked={sel}
-                          onClick={() => setA({ ...a, [q.key]: o })}
-                          className={`flex items-center justify-between text-left rounded-xl border px-4 py-3 transition-colors ${sel ? "border-purple-400 bg-purple-600/20 text-white" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"}`}
-                        >
-                          <span>{o}</span>
-                          {sel && <Check className="w-4 h-4 text-purple-300" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <Input
-                    autoFocus
-                    maxLength={40}
-                    value={a.preferredName}
-                    onChange={(e) => setA({ ...a, preferredName: e.target.value })}
-                    onKeyDown={(e) => { if (e.key === "Enter") void next(); }}
-                    placeholder="Your name or nickname"
-                    className="glass-input text-white"
-                  />
-                )}
+                <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground mb-5">{q.title}</h2>
+                <AgentQuestionStep key={q.key} workflow="onboarding" fieldKey={q.key} answers={a} value={a[q.key]} onChange={(v) => setA({ ...a, [q.key]: v })} onReady={setReadyQuestion} />
               </motion.div>
             </AnimatePresence>
-            {!value && <p className="text-white/40 text-xs mt-3">{q.options ? "Choose one option to continue." : "Please enter a name to continue."}</p>}
+            {!value && <p className="text-foreground/40 text-xs mt-3">{q.options ? "Choose one option to continue." : "Please enter a name to continue."}</p>}
             {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
             <div className="flex justify-between mt-6">
-              <Button variant="ghost" disabled={step === 0} onClick={() => setStep(step - 1)} className="text-white/70">Back</Button>
-              <Button disabled={!value || update.isPending} onClick={next} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+              <Button variant="ghost" disabled={step === 0} onClick={() => { setReadyQuestion(null); setStep(step - 1); }} className="text-foreground/70">Back</Button>
+              <Button disabled={!readyQuestion || !answerValid(readyQuestion, a[q.key]) || update.isPending} onClick={next} className="bg-gradient-to-r from-agent to-agent agent-gradient text-foreground">
                 {step === QUESTIONS.length - 1 ? "Finish" : "Next"}
               </Button>
             </div>
@@ -173,18 +148,18 @@ function Analysis({ save, onDone, onBack }: { save: (p: Record<string, unknown>)
 
   return (
     <div className="space-y-4 py-4">
-      <h2 className="font-display text-xl font-bold text-white text-center mb-2">Setting things up</h2>
+      <h2 className="font-display text-xl font-bold text-foreground text-center mb-2">Setting things up</h2>
       {steps.map((s, i) => (
-        <motion.div key={s} initial={{ opacity: 0 }} animate={{ opacity: i <= done ? 1 : 0.35 }} className="flex items-center gap-3 text-white/85">
-          {i < done ? <Check className="w-5 h-5 text-emerald-400" /> : i === done && !failed ? <Loader2 className="w-5 h-5 animate-spin text-purple-300" /> : <span className="w-5 h-5" />}
+        <motion.div key={s} initial={{ opacity: 0 }} animate={{ opacity: i <= done ? 1 : 0.35 }} className="flex items-center gap-3 text-foreground/85">
+          {i < done ? <Check className="w-5 h-5 text-emerald-400" /> : i === done && !failed ? <Loader2 className="w-5 h-5 animate-spin text-agent-ink" /> : <span className="w-5 h-5" />}
           <span>{s}</span>
         </motion.div>
       ))}
-      <p className="text-white/40 text-xs text-center pt-2">This saves your basic profile — no AI analysis runs at this stage.</p>
+      <p className="text-foreground/40 text-xs text-center pt-2">This saves your basic profile — no AI analysis runs at this stage.</p>
       {failed && (
         <div className="text-center space-y-2">
           <p className="text-red-400 text-sm">Something didn't save. Please try again.</p>
-          <Button variant="ghost" onClick={onBack} className="text-white/70">Go back</Button>
+          <Button variant="ghost" onClick={onBack} className="text-foreground/70">Go back</Button>
         </div>
       )}
     </div>
@@ -206,8 +181,8 @@ function TeamIntro({ name, onFinish }: { name: string; onFinish: () => Promise<v
       <div className="flex items-center gap-4">
         <img src={larry.image} alt="Larry" className="w-14 h-14 rounded-full object-cover ring-2 ring-purple-500/60" />
         <div>
-          <h2 className="font-display text-xl font-bold text-white">Hi{name ? ` ${name}` : ""}, I'm Larry.</h2>
-          <p className="text-white/65 text-sm">I coordinate your team and manage your tasks. Meet the specialists:</p>
+          <h2 className="font-display text-xl font-bold text-foreground">Hi{name ? ` ${name}` : ""}, I'm Larry.</h2>
+          <p className="text-foreground/65 text-sm">I coordinate your team and manage your tasks. Meet the specialists:</p>
         </div>
       </div>
       <div className="grid gap-2">
@@ -215,23 +190,23 @@ function TeamIntro({ name, onFinish }: { name: string; onFinish: () => Promise<v
           const c = CHARACTERS[t.id];
           const isOpen = open === t.id;
           return (
-            <button key={t.id} onClick={() => setOpen(isOpen ? null : t.id)} className={`text-left rounded-xl border ${c.theme.border} bg-white/5 hover:bg-white/10 p-3 transition-colors`}>
+            <button key={t.id} onClick={() => setOpen(isOpen ? null : t.id)} className={`text-left rounded-xl border ${c.theme.border} bg-white/5 hover:bg-foreground/10 p-3 transition-colors`}>
               <div className="flex items-center gap-3">
                 <img src={c.image} alt={c.name} className="w-10 h-10 rounded-full object-cover" />
                 <div>
                   <div className={`font-semibold ${c.theme.text}`}>{c.name}</div>
-                  <div className="text-white/60 text-xs">{t.area}</div>
+                  <div className="text-foreground/60 text-xs">{t.area}</div>
                 </div>
               </div>
-              {isOpen && <p className="text-white/80 text-sm mt-3">{t.intro}</p>}
+              {isOpen && <p className="text-foreground/80 text-sm mt-3">{t.intro}</p>}
             </button>
           );
         })}
       </div>
-      <p className="text-white/85 italic border-l-2 border-purple-500/60 pl-3">
+      <p className="text-foreground/85 italic border-l-2 border-purple-500/60 pl-3">
         “Before I can build a plan that fits you, each member of the team needs to get to know you.”
       </p>
-      <Button size="lg" disabled={busy} onClick={async () => { setBusy(true); await onFinish(); setBusy(false); }} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+      <Button size="lg" disabled={busy} onClick={async () => { setBusy(true); await onFinish(); setBusy(false); }} className="w-full bg-gradient-to-r from-agent to-agent agent-gradient text-foreground">
         Start Team Setup
       </Button>
     </div>
