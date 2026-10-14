@@ -115,7 +115,8 @@
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    @apply font-bold tracking-tight;
+    @apply font-bold;
+    letter-spacing: 0;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
@@ -149,3 +150,29 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Shared original character identities, including accessible foreground tones. */
+@theme inline {
+  --color-agent: var(--agent-color);
+  --color-agent-ink: var(--agent-ink);
+  --color-auth-surface: var(--auth-surface);
+}
+:root { --auth-surface: oklch(0.14 0.014 290); --agent-color: oklch(0.56 0.25 295); --agent-ink: oklch(0.8 0.12 295); }
+.agent-larry { --agent-color: oklch(0.56 0.25 295); --agent-ink: oklch(0.8 0.12 295); }
+.agent-sensei { --agent-color: oklch(0.69 0.15 235); --agent-ink: oklch(0.82 0.1 235); }
+.agent-hassan { --agent-color: oklch(0.65 0.18 150); --agent-ink: oklch(0.8 0.13 150); }
+.agent-neo { --agent-color: oklch(0.34 0.12 260); --agent-ink: oklch(0.72 0.1 260); }
+.light .agent-larry { --agent-ink: oklch(0.48 0.22 295); }
+.light .agent-sensei { --agent-ink: oklch(0.45 0.12 235); }
+.light .agent-hassan { --agent-ink: oklch(0.43 0.13 150); }
+.light .agent-neo { --agent-ink: oklch(0.34 0.12 260); }
+.agent-gradient { background: linear-gradient(135deg, var(--agent-color), color-mix(in oklch, var(--agent-color) 80%, var(--background))); }
+.agent-glass { background: color-mix(in oklch, var(--agent-color) 23%, transparent); backdrop-filter: blur(24px); }
+.agent-glow { --tw-shadow-color: color-mix(in oklch, var(--agent-color) 25%, transparent); }
+.agent-choice { border-color: var(--color-border); background: color-mix(in oklch, var(--color-card) 70%, transparent); color: var(--color-foreground); }
+.agent-choice:hover { border-color: var(--agent-color); }
+.agent-choice-selected { border-color: var(--agent-ink); background: color-mix(in oklch, var(--agent-color) 23%, var(--color-card)); }
+.agent-action { background: var(--agent-color); color: var(--color-primary-foreground); }
+.auth-screen { background: var(--auth-surface); }
+.auth-portrait { box-shadow: 0 0 0 1px color-mix(in oklch, var(--agent-color) 50%, transparent), 0 20px 70px color-mix(in oklch, var(--agent-color) 16%, transparent); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }

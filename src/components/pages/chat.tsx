@@ -10,6 +10,8 @@ import { api } from "@/shared/routes";
 import { CommandCenter } from "@/components/command-center";
 import { PlanReview } from "@/components/plan-review";
 import { PLANS_KEY } from "@/hooks/use-plans";
+import { PlanningQuestions } from "@/components/planning-questions";
+import { questionsSchema, type AgentQuestion } from "@/shared/agent-questions";
 
 type LocalMessage = {
   id: number;
@@ -17,6 +19,8 @@ type LocalMessage = {
   sender: string;
   characterId: string;
   createdAt: Date | string;
+  questions?: AgentQuestion[];
+  questionError?: string | null;
 };
 
 export default function ChatPage({ conversationId }: { conversationId: string }) {
@@ -46,7 +50,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
   useEffect(() => {
     if (!initialized && serverMessages !== undefined) {
       if (serverMessages.length > 0) {
-        setChatMessages(serverMessages.map((m) => ({ ...m, characterId: character.id, createdAt: m.createdAt ?? new Date() })));
+        setChatMessages(serverMessages.map((m) => { const parsed = questionsSchema.safeParse({ questions: m.metadata?.["questions"] ?? [] }); return { ...m, questions: parsed.success ? parsed.data.questions : [], characterId: character.id, createdAt: m.createdAt ?? new Date() }; }));
       } else {
         setChatMessages([
           {
@@ -68,8 +72,8 @@ export default function ChatPage({ conversationId }: { conversationId: string })
     if (convData) setActiveCharacter(convData.conversation.characterId);
   }, [convData, setActiveCharacter]);
 
-  const persist = (sender: string, content: string) =>
-    addMessageRequest(conversationId, sender, content)
+  const persist = (sender: string, content: string, metadata: Record<string, unknown> = {}) =>
+    addMessageRequest(conversationId, sender, content, metadata)
       .then(() => queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY }))
       .catch((err) => {
         console.error("Failed to save message:", err);
@@ -124,6 +128,8 @@ export default function ChatPage({ conversationId }: { conversationId: string })
     void persist("user", userText);
 
     let reply = "I'm here. How can I help?";
+    let questions: AgentQuestion[] = [];
+    let questionError: string | null = null;
     let handoffTarget: { character: string; question: string; conversationId: string } | null = null;
 
     try {
@@ -151,6 +157,9 @@ export default function ChatPage({ conversationId }: { conversationId: string })
 
         if (response.ok) {
           const data = await response.json();
+          const parsed = questionsSchema.safeParse({ questions: data.questions ?? [] });
+          questions = parsed.success ? parsed.data.questions : [];
+          questionError = typeof data.questionError === "string" ? data.questionError : null;
           if (data.dataChanged) {
             queryClient.invalidateQueries({ queryKey: [api.habits.list.path] });
             queryClient.invalidateQueries({ queryKey: [api.profile.get.path] });
@@ -184,6 +193,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
       const aiMsg: LocalMessage = {
         id: Date.now() + 1,
         content: reply,
+        questions, questionError,
         sender: character.id,
         characterId: character.id,
         createdAt: new Date(),
@@ -191,7 +201,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
       setChatMessages((prev) => [...prev, aiMsg]);
 
       // 6. Save AI reply to server in the background
-      void persist(character.id, reply);
+      void persist(character.id, reply, { questions });
     } finally {
       setIsAiTyping(false);
     }
@@ -263,6 +273,8 @@ export default function ChatPage({ conversationId }: { conversationId: string })
                     }`}
                   >
                     <p className="text-[15px] sm:text-base whitespace-pre-line">{msg.content.replace(/\*\*/g, "")}</p>
+                    {!isUser && msg.id === chatMessages.at(-1)?.id && !!msg.questions?.length && <PlanningQuestions questions={msg.questions} onAnswer={sendText} disabled={isAiTyping} />}
+                    {msg.questionError && <p role="status" className="mt-3 text-sm text-muted-foreground">{msg.questionError}</p>}
                   </div>
                 </div>
               </motion.div>

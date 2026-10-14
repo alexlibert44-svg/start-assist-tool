@@ -19,6 +19,7 @@ import { Route as AuthenticatedPlansRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedProgressRouteImport } from './routes/_authenticated/progress'
 import { Route as AuthenticatedTeamSetupRouteImport } from './routes/_authenticated/team-setup'
+import { Route as ApiAgentQuestionsRouteImport } from './routes/api/agent-questions'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
 import { Route as ApiHabitsRouteImport } from './routes/api/habits'
@@ -85,6 +86,11 @@ const AuthenticatedTeamSetupRoute = AuthenticatedTeamSetupRouteImport.update({
   id: '/team-setup',
   path: '/team-setup',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiAgentQuestionsRoute = ApiAgentQuestionsRouteImport.update({
+  id: '/api/agent-questions',
+  path: '/api/agent-questions',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/progress': typeof AuthenticatedProgressRoute
   '/team-setup': typeof AuthenticatedTeamSetupRoute
+  '/api/agent-questions': typeof ApiAgentQuestionsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
@@ -212,6 +219,7 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/progress': typeof AuthenticatedProgressRoute
   '/team-setup': typeof AuthenticatedTeamSetupRoute
+  '/api/agent-questions': typeof ApiAgentQuestionsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
@@ -242,6 +250,7 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/progress': typeof AuthenticatedProgressRoute
   '/_authenticated/team-setup': typeof AuthenticatedTeamSetupRoute
+  '/api/agent-questions': typeof ApiAgentQuestionsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/habits': typeof ApiHabitsRouteWithChildren
@@ -272,6 +281,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/progress'
     | '/team-setup'
+    | '/api/agent-questions'
     | '/api/chat'
     | '/api/conversations'
     | '/api/habits'
@@ -300,6 +310,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/progress'
     | '/team-setup'
+    | '/api/agent-questions'
     | '/api/chat'
     | '/api/conversations'
     | '/api/habits'
@@ -329,6 +340,7 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/progress'
     | '/_authenticated/team-setup'
+    | '/api/agent-questions'
     | '/api/chat'
     | '/api/conversations'
     | '/api/habits'
@@ -353,6 +365,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   WelcomeRoute: typeof WelcomeRoute
+  ApiAgentQuestionsRoute: typeof ApiAgentQuestionsRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiConversationsRoute: typeof ApiConversationsRouteWithChildren
   ApiHabitsRoute: typeof ApiHabitsRouteWithChildren
@@ -434,6 +447,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/team-setup'
       preLoaderRoute: typeof AuthenticatedTeamSetupRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/agent-questions': {
+      id: '/api/agent-questions'
+      path: '/api/agent-questions'
+      fullPath: '/api/agent-questions'
+      preLoaderRoute: typeof ApiAgentQuestionsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
       id: '/api/chat'
@@ -669,6 +689,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   WelcomeRoute: WelcomeRoute,
+  ApiAgentQuestionsRoute: ApiAgentQuestionsRoute,
   ApiChatRoute: ApiChatRoute,
   ApiConversationsRoute: ApiConversationsRouteWithChildren,
   ApiHabitsRoute: ApiHabitsRouteWithChildren,

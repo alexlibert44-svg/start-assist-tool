@@ -36,11 +36,11 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     colorName: 'purple',
     image: larryPortrait.url,
     theme: {
-      gradient: 'from-purple-600 to-indigo-600',
-      chatBubble: 'bg-gradient-to-br from-purple-600/30 to-indigo-600/30 backdrop-blur-xl',
-      glow: 'shadow-purple-500/25',
-      text: 'text-purple-400',
-      border: 'border-purple-500/30',
+      gradient: 'agent-larry from-agent to-agent agent-gradient',
+      chatBubble: 'agent-larry agent-glass',
+      glow: 'agent-larry agent-glow',
+      text: 'agent-larry text-agent-ink',
+      border: 'agent-larry border-agent/40',
     }
   },
   'Sensei': {
@@ -50,11 +50,11 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     colorName: 'sky blue',
     image: senseiPortrait.url,
     theme: {
-      gradient: 'from-sky-400 to-blue-600',
-      chatBubble: 'bg-gradient-to-br from-sky-500/30 to-blue-600/30 backdrop-blur-xl',
-      glow: 'shadow-sky-500/25',
-      text: 'text-sky-400',
-      border: 'border-sky-500/30',
+      gradient: 'agent-sensei from-agent to-agent agent-gradient',
+      chatBubble: 'agent-sensei agent-glass',
+      glow: 'agent-sensei agent-glow',
+      text: 'agent-sensei text-agent-ink',
+      border: 'agent-sensei border-agent/40',
     }
   },
   'Dr Neo': {
@@ -64,11 +64,11 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     colorName: 'deep navy blue',
     image: drNeoPortrait.url,
     theme: {
-      gradient: 'from-blue-800 to-indigo-900',
-      chatBubble: 'bg-gradient-to-br from-blue-700/30 to-indigo-800/30 backdrop-blur-xl',
-      glow: 'shadow-blue-600/25',
-      text: 'text-blue-400',
-      border: 'border-blue-700/30',
+      gradient: 'agent-neo from-agent to-agent agent-gradient',
+      chatBubble: 'agent-neo agent-glass',
+      glow: 'agent-neo agent-glow',
+      text: 'agent-neo text-agent-ink',
+      border: 'agent-neo border-agent/40',
     }
   },
   'Hassan': {
@@ -78,11 +78,11 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     colorName: 'green',
     image: hassanPortrait.url,
     theme: {
-      gradient: 'from-emerald-400 to-green-600',
-      chatBubble: 'bg-gradient-to-br from-emerald-500/30 to-green-600/30 backdrop-blur-xl',
-      glow: 'shadow-emerald-500/25',
-      text: 'text-emerald-400',
-      border: 'border-emerald-500/30',
+      gradient: 'agent-hassan from-agent to-agent agent-gradient',
+      chatBubble: 'agent-hassan agent-glass',
+      glow: 'agent-hassan agent-glow',
+      text: 'agent-hassan text-agent-ink',
+      border: 'agent-hassan border-agent/40',
     }
   }
 };
