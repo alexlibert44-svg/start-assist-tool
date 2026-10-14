@@ -218,6 +218,7 @@ export type Database = {
       }
       profile: {
         Row: {
+          agent_workflows: Json
           biggest_challenge: string | null
           current_situation: string | null
           focus_sessions: number | null
@@ -236,6 +237,7 @@ export type Database = {
           xp: number | null
         }
         Insert: {
+          agent_workflows?: Json
           biggest_challenge?: string | null
           current_situation?: string | null
           focus_sessions?: number | null
@@ -254,6 +256,7 @@ export type Database = {
           xp?: number | null
         }
         Update: {
+          agent_workflows?: Json
           biggest_challenge?: string | null
           current_situation?: string | null
           focus_sessions?: number | null

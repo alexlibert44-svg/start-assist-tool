@@ -50,6 +50,13 @@
       "when": 1791812974292,
       "tag": "0006_plans_planning_workflow",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792002588464,
+      "tag": "0007_persistent_agent_questions",
+      "breakpoints": true
     }
   ]
 }
