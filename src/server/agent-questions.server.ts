@@ -86,10 +86,10 @@ Current answers or conversation context: ${JSON.stringify(context)}`;
     const q = parsed.data.questions[0];
     const expected = Array.isArray(spec) ? spec.find((f) => f.key === key) : spec?.[key as keyof typeof spec];
     if (!q || parsed.data.questions.length !== 1 || q.key !== key || q.type !== expected?.type || q.optional !== !!(expected && "optional" in expected && expected.optional)) throw new QuestionError("The question did not match this step. Your saved answers are unchanged.");
+    q.custom = workflow === "onboarding" || !!(expected && "custom" in expected && expected.custom);
     if (Array.isArray(spec)) {
-      const fixed = ["situation", "mainGoal", "ageRange", "sex", "trainingDays"];
       const original = spec.find((f) => f.key === key)?.options;
-      if (fixed.includes(key) && original && (q.options.length !== original.length || original.some((o) => !q.options.includes(o)))) throw new QuestionError("The choices did not match this field. Try again.");
+      if (original && !q.custom && (q.options.length !== original.length || original.some((o) => !q.options.includes(o)))) throw new QuestionError("The choices did not match this field. Try again.");
     }
   }
   return parsed.data.questions;
