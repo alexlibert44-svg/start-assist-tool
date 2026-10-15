@@ -9,6 +9,19 @@ import { profileContext } from "./team-setup.server";
 
 export class QuestionError extends Error { constructor(message: string, public status = 422) { super(message); } }
 async function db() { return (await import("@/integrations/supabase/client.server")).supabaseAdmin; }
+async function pauseState(uid: string): Promise<{ status: number; message: string; terminal: boolean } | null> {
+  const c = await db();
+  const r = await c.from("profile").select("agent_workflows").eq("user_id", uid).order("id").limit(1);
+  if (r.error) throw new Error(r.error.message);
+  const all = r.data?.[0]?.agent_workflows as Record<string, unknown> | undefined;
+  const parsed = z.object({ status: z.number(), message: z.string(), terminal: z.boolean() }).safeParse(all?.["_ai_pause"]);
+  return parsed.success ? parsed.data : null;
+}
+async function setPause(uid: string, pause: { status: number; message: string; terminal: boolean } | null) {
+  const c = await db();
+  const r = await c.rpc("set_agent_workflow", { p_user_id: uid, p_key: "_ai_pause", p_state: pause as never });
+  if (r.error) throw new Error(r.error.message);
+}
 export async function readWorkflow(uid: string, workflow: Workflow): Promise<WorkflowState | null> {
   const c = await db();
   const r = await c.from("profile").select("agent_workflows").eq("user_id", uid).order("id").limit(1);
@@ -19,18 +32,18 @@ export async function readWorkflow(uid: string, workflow: Workflow): Promise<Wor
 }
 export async function writeWorkflow(uid: string, workflow: Workflow, state: WorkflowState) {
   const c = await db();
-  // Only replace this workflow key; never touch canonical profile answers or points.
-  const r = await c.from("profile").select("id,agent_workflows").eq("user_id", uid).order("id").limit(1);
-  if (r.error) throw new Error(r.error.message);
-  const row = r.data?.[0];
-  if (!row) throw new QuestionError("Open your profile first, then try again.", 409);
-  const all = row.agent_workflows && typeof row.agent_workflows === "object" ? row.agent_workflows : {};
-  const saved = await c.from("profile").update({ agent_workflows: { ...all, [workflow]: state } as never }).eq("user_id", uid).eq("id", row.id);
+  // Atomic JSON key update avoids losing another stage's progress during concurrent saves.
+  const saved = await c.rpc("set_agent_workflow", { p_user_id: uid, p_key: workflow, p_state: state as never });
   if (saved.error) throw new Error(saved.error.message);
   return state;
 }
 const wireSchema = z.object({ questions: z.array(z.object({ key: z.string(), label: z.string(), type: z.enum(["single", "multi", "text", "number", "scale", "subjects"]), options: z.array(z.string()), optional: z.boolean() })) });
-export async function generateQuestions(uid: string, workflow: Workflow, key: string, context: unknown, signal?: AbortSignal): Promise<AgentQuestion[]> {
+export async function generateQuestions(uid: string, workflow: Workflow, key: string, context: unknown, signal?: AbortSignal, resume = false): Promise<AgentQuestion[]> {
+  const paused = await pauseState(uid);
+  if (paused) {
+    if (!resume || paused.terminal) throw new QuestionError(paused.message, paused.status);
+    await setPause(uid, null); // Explicit owner retry only, never a reload or automatic background retry.
+  }
   const saved = await storageFor(uid).getProfile();
   const spec = workflow === "onboarding" ? {
     preferredName: { type: "text" }, primaryGoal: { type: "single" }, biggestChallenge: { type: "single" }, phoneUsage: { type: "single" }, currentSituation: { type: "single" },
@@ -48,21 +61,27 @@ Current answers or conversation context: ${JSON.stringify(context)}`;
   if (!apiKey) throw new QuestionError("AI questions are not configured.", 503);
   const provider = createLovableAiGatewayProvider(apiKey, undefined, { baseURL: "https://ai.gateway.lovable.dev/v1" });
   let raw: unknown;
+  let streamError: unknown;
   try {
-    const result = streamText({ model: provider("google/gemini-3-flash-preview"), output: Output.object({ schema: wireSchema }), prompt, maxRetries: 0, abortSignal: signal });
+    const result = streamText({ model: provider("google/gemini-3-flash-preview"), output: Output.object({ schema: wireSchema }), prompt, maxRetries: 0, abortSignal: signal, onError: ({ error }) => { streamError = error; } });
     raw = await result.output;
   } catch (error) {
-    if (APICallError.isInstance(error)) {
+    const cause = streamError ?? error;
+    if (APICallError.isInstance(cause)) {
       let message = "AI questions are unavailable.";
-      try { const b = JSON.parse(error.responseBody ?? "{}"); message = b.message ?? b.error?.message ?? message; } catch { /* no unsafe raw provider text */ }
-      throw new QuestionError(message, error.statusCode ?? 503);
+      let terminal = false;
+      try { const b = JSON.parse(cause.responseBody ?? "{}"); message = b.message ?? b.error?.message ?? message; terminal = cause.statusCode === 403 && !["credit_limit_reached", "ai_disabled"].includes(b.type ?? b.error?.type); } catch { terminal = cause.statusCode === 403; }
+      const status = cause.statusCode ?? 503;
+      if (status === 402 || status === 403) await setPause(uid, { status, message, terminal });
+      throw new QuestionError(message, status);
     }
-    if (NoObjectGeneratedError.isInstance(error)) {
-      try { raw = JSON.parse(error.text ?? ""); } catch { throw new QuestionError("The question was incomplete. Your saved answers are unchanged."); }
-    } else throw error;
+    if (NoObjectGeneratedError.isInstance(cause)) {
+      try { raw = JSON.parse(cause.text ?? ""); } catch { throw new QuestionError("The question was incomplete. Your saved answers are unchanged."); }
+    } else throw cause;
   }
   const parsed = questionsSchema.safeParse(raw);
   if (!parsed.success) throw new QuestionError("The question was invalid. Your saved answers are unchanged.");
+  if (!parsed.data.questions.length && workflow !== "planning") throw new QuestionError("The question was incomplete. Your saved answers are unchanged.");
   if (workflow !== "planning") {
     const q = parsed.data.questions[0];
     const expected = Array.isArray(spec) ? spec.find((f) => f.key === key) : spec?.[key as keyof typeof spec];

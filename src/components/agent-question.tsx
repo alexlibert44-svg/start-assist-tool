@@ -27,11 +27,12 @@ export function AgentQuestionStep({ workflow, fieldKey, answers, value, onChange
   const [question, setQuestion] = useState<AgentQuestion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  const [terminal, setTerminal] = useState(false);
   useEffect(() => {
     let live = true;
     setQuestion(null); setError(null); onReady?.(null);
-    fetch("/api/agent-questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workflow, key: fieldKey, answers }) }).then(async (res) => {
-      const body = await res.json(); if (!res.ok) throw new Error(body.message ?? "Could not prepare the question.");
+    fetch("/api/agent-questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workflow, key: fieldKey, answers, resume: retry > 0 }) }).then(async (res) => {
+      const body = await res.json(); if (!res.ok) { if (live) setTerminal(res.status === 403 || res.status === 404); throw new Error(body.message ?? "Could not prepare the question."); }
       const q = questionSchema.parse(body); if (q.key !== fieldKey) throw new Error("The question did not match this step.");
       if (live) { setQuestion(q); onReady?.(q); }
     }).catch((e) => { if (live) setError(e instanceof Error ? e.message : "Could not prepare the question."); });
@@ -39,7 +40,7 @@ export function AgentQuestionStep({ workflow, fieldKey, answers, value, onChange
     // Answers are context at entry; changing a selection must not regenerate its question.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflow, fieldKey, retry]);
-  if (error) return <div className="space-y-3"><p role="alert" className="text-destructive-foreground">{error}</p><Button variant="outline" onClick={() => setRetry((n) => n + 1)}>Try again</Button></div>;
+  if (error) return <div className="space-y-3"><p role="alert" className="text-foreground">{error}</p>{!terminal && <Button variant="outline" onClick={() => setRetry((n) => n + 1)}>Try again</Button>}</div>;
   if (!question) return <div role="status" className="flex items-center gap-3 py-8 text-muted-foreground"><Loader2 className="animate-spin" />Preparing your question...</div>;
   return <AgentAnswer question={question} value={value} onChange={onChange} />;
 }
