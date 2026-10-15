@@ -24,6 +24,7 @@ export const Route = createFileRoute("/api/agent-questions")({ server: { handler
       await writeWorkflow(uid, body.workflow, workflowStateSchema.parse(state));
       return Response.json(questions[0]);
     } catch (e) {
+      console.error("Agent question failure", e);
       if (e instanceof z.ZodError) return Response.json({ message: "Invalid question request." }, { status: 400 });
       return Response.json({ message: e instanceof QuestionError ? e.message : "Could not prepare the question. Your answers are kept." }, { status: e instanceof QuestionError ? e.status : 500 });
     }
