@@ -314,7 +314,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      set_agent_workflow: {
+        Args: { p_key: string; p_state: Json; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
