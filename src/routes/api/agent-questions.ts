@@ -4,7 +4,7 @@ import { requireUserId } from "@/server/auth.server";
 import { generateQuestions, readWorkflow, writeWorkflow, QuestionError } from "@/server/agent-questions.server";
 import { WORKFLOWS, workflowStateSchema } from "@/shared/agent-questions";
 
-const input = z.object({ workflow: z.enum(WORKFLOWS), key: z.string().min(1).max(50), answers: z.record(z.unknown()).default({}) });
+const input = z.object({ workflow: z.enum(WORKFLOWS), key: z.string().min(1).max(50), answers: z.record(z.unknown()).default({}), resume: z.boolean().default(false) });
 export const Route = createFileRoute("/api/agent-questions")({ server: { handlers: {
   GET: async ({ request }) => {
     const uid = await requireUserId(request);
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/api/agent-questions")({ server: { handler
       const old = await readWorkflow(uid, body.workflow);
       const existing = old?.questions.find((q) => q.key === body.key);
       if (existing) return Response.json(existing);
-      const questions = await generateQuestions(uid, body.workflow, body.key, body.answers, request.signal);
+      const questions = await generateQuestions(uid, body.workflow, body.key, body.answers, request.signal, body.resume);
       const state = { questions: [...(old?.questions ?? []), ...questions], answers: old?.answers ?? {}, step: old?.step ?? 0 };
       await writeWorkflow(uid, body.workflow, workflowStateSchema.parse(state));
       return Response.json(questions[0]);
@@ -33,7 +33,10 @@ export const Route = createFileRoute("/api/agent-questions")({ server: { handler
     const uid = await requireUserId(request);
     try {
       const { workflow, state } = z.object({ workflow: z.enum(WORKFLOWS), state: workflowStateSchema }).parse(await request.json());
-      return Response.json(await writeWorkflow(uid, workflow, state));
+      const existing = await readWorkflow(uid, workflow);
+      if (!existing) return Response.json({ message: "Prepare your question first." }, { status: 409 });
+      // Question definitions are server-generated, not replaceable by browser-supplied JSON.
+      return Response.json(await writeWorkflow(uid, workflow, { ...state, questions: existing.questions }));
     } catch { return Response.json({ message: "Could not save your answers. Please try again." }, { status: 400 }); }
   },
 } } });
