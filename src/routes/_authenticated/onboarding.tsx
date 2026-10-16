@@ -8,7 +8,7 @@ import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { CHARACTERS, type CharacterId } from "@/store/use-character";
 import { createConversationRequest, fetchConversations } from "@/hooks/use-conversations";
 import { AgentQuestionStep, answerValid, saveQuestionProgress } from "@/components/agent-question";
-import type { AgentQuestion } from "@/shared/agent-questions";
+import { workflowStateSchema, type AgentQuestion } from "@/shared/agent-questions";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({
@@ -42,6 +42,9 @@ function Onboarding() {
   const [a, setA] = useState<Answers>({ preferredName: "", primaryGoal: "", biggestChallenge: "", phoneUsage: "", currentSituation: "" });
   const [readyQuestion, setReadyQuestion] = useState<AgentQuestion | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [restored, setRestored] = useState(false);
+  const dirty = useRef(false);
+  const [savingNext, setSavingNext] = useState(false);
 
   // Restore saved answers and progress.
   useEffect(() => {
@@ -54,7 +57,23 @@ function Onboarding() {
     setStep(profile.onboardingCompleted ? Math.max(TEAM, Math.min(profile.onboardingStep ?? TEAM, DONE)) : Math.min(profile.onboardingStep ?? 0, ANALYSIS - 1));
   }, [profile, step]);
 
-  if (isLoading || step === null) {
+  useEffect(() => {
+    let live = true;
+    fetch("/api/agent-questions?workflow=onboarding").then(async (res) => {
+      if (!res.ok) throw new Error();
+      const parsed = workflowStateSchema.safeParse(await res.json());
+      if (live && parsed.success) setA((current) => ({ ...current, ...Object.fromEntries(Object.entries(parsed.data.answers).filter(([key, value]) => QUESTIONS.some((q) => q.key === key) && typeof value === "string")) }));
+      if (live) setRestored(true);
+    }).catch(() => { if (live) { setError("Could not restore your draft. Your saved profile is unchanged."); setRestored(true); } });
+    return () => { live = false; };
+  }, []);
+  useEffect(() => {
+    if (!dirty.current || !readyQuestion || step === null || savingNext) return;
+    const timer = setTimeout(() => { void saveQuestionProgress("onboarding", a, step).catch(() => setError("Draft not saved. Please try again.")); }, 800);
+    return () => clearTimeout(timer);
+  }, [a, readyQuestion, step, savingNext]);
+
+  if (isLoading || step === null || !restored) {
     return <div className="flex-1 flex items-center justify-center text-foreground/40 text-sm">Loading your progress...</div>;
   }
 
@@ -67,10 +86,14 @@ function Onboarding() {
   const q = QUESTIONS[step];
   const value = q ? a[q.key].trim() : "";
   const next = async () => {
-    if (!q || !readyQuestion || !answerValid(readyQuestion, a[q.key])) return;
-    try { await saveQuestionProgress("onboarding", a, step + 1); } catch (e) { setError((e as Error).message); return; }
-    const nextStep = step + 1;
-    if (await save({ [q.key]: value, ...(q.key === "preferredName" ? { name: value } : {}), onboardingStep: nextStep })) setStep(nextStep);
+    if (!q || !readyQuestion || savingNext || !answerValid(readyQuestion, a[q.key])) return;
+    setSavingNext(true);
+    try {
+      await saveQuestionProgress("onboarding", a, step);
+      const nextStep = step + 1;
+      if (await save({ [q.key]: value, ...(q.key === "preferredName" ? { name: value } : {}), onboardingStep: nextStep })) { setReadyQuestion(null); setStep(nextStep); }
+    } catch (e) { setError((e as Error).message); }
+    finally { setSavingNext(false); }
   };
 
   return (
@@ -87,15 +110,14 @@ function Onboarding() {
             </div>
             <AnimatePresence mode="wait">
               <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground mb-5">{q.title}</h2>
-                <AgentQuestionStep key={q.key} workflow="onboarding" fieldKey={q.key} answers={a} value={a[q.key]} onChange={(v) => setA({ ...a, [q.key]: v })} onReady={setReadyQuestion} />
+                <AgentQuestionStep key={q.key} workflow="onboarding" fieldKey={q.key} answers={a} value={a[q.key]} onChange={(v) => { dirty.current = true; setA({ ...a, [q.key]: typeof v === "string" ? v : "" }); }} onReady={setReadyQuestion} />
               </motion.div>
             </AnimatePresence>
             {!value && <p className="text-foreground/40 text-xs mt-3">{q.options ? "Choose one option to continue." : "Please enter a name to continue."}</p>}
             {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
             <div className="flex justify-between mt-6">
               <Button variant="ghost" disabled={step === 0} onClick={() => { setReadyQuestion(null); setStep(step - 1); }} className="text-foreground/70">Back</Button>
-              <Button disabled={!readyQuestion || !answerValid(readyQuestion, a[q.key]) || update.isPending} onClick={next} className="bg-gradient-to-r from-agent to-agent agent-gradient text-foreground">
+              <Button disabled={!readyQuestion || !answerValid(readyQuestion, a[q.key]) || update.isPending || savingNext} onClick={next} className="agent-action">
                 {step === QUESTIONS.length - 1 ? "Finish" : "Next"}
               </Button>
             </div>

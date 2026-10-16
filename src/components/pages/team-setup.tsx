@@ -110,7 +110,7 @@ function StageForm({ kind, initial, completed, onBack, onSaved, onDraft }: {
   kind: SetupKind; initial: A; completed: boolean; onBack?: () => void;
   onSaved: (s: TeamSetupState) => void; onDraft: (s: TeamSetupState) => void;
 }) {
-  const [questionIndex, setQuestionIndex] = useState(0);
+  const [fieldKey, setFieldKey] = useState(FIELDS[kind][0]?.key ?? "");
   const [ready, setReady] = useState<AgentQuestion | null>(null);
   const [restored, setRestored] = useState(false);
   const [a, setA] = useState<A>(initial);
@@ -120,6 +120,9 @@ function StageForm({ kind, initial, completed, onBack, onSaved, onDraft }: {
   const dirty = useRef(false);
   const c = CHARACTERS[KIND_CHARACTER[kind]];
   const fields = FIELDS[kind].filter((f) => !f.showIf || f.showIf(a));
+  const questionIndex = Math.max(0, fields.findIndex((f) => f.key === fieldKey));
+  const currentField = fields[questionIndex];
+  const setQuestionIndex = (index: number) => { const field = fields[Math.min(index, fields.length - 1)]; if (field) setFieldKey(field.key); };
   const set = (k: string, v: unknown) => { dirty.current = true; setA((p) => { const n = { ...p }; if (v === undefined || v === "") delete n[k]; else n[k] = v; return n; }); };
 
   useEffect(() => {
@@ -127,7 +130,11 @@ function StageForm({ kind, initial, completed, onBack, onSaved, onDraft }: {
     fetch(`/api/agent-questions?workflow=${kind}`).then(async (res) => {
       if (!res.ok) throw new Error("Could not restore your questions.");
       const parsed = workflowStateSchema.safeParse(await res.json());
-      if (live && parsed.success && !completed) { setA({ ...parsed.data.answers, ...initial }); setQuestionIndex(Math.min(parsed.data.step, FIELDS[kind].length - 1)); }
+      if (live && parsed.success && !completed) {
+        const answers = { ...initial, ...parsed.data.answers };
+        const visible = FIELDS[kind].filter((f) => !f.showIf || f.showIf(answers));
+        setA(answers); setFieldKey(visible[Math.min(parsed.data.step, visible.length - 1)]?.key ?? visible[0]?.key ?? "");
+      }
       if (live) setRestored(true);
     }).catch(() => { if (live) { setErr("Could not restore question progress. Your saved profile is unchanged."); setRestored(true); } });
     return () => { live = false; };
@@ -171,17 +178,17 @@ function StageForm({ kind, initial, completed, onBack, onSaved, onDraft }: {
         </div>
       </div>
       <p className="text-muted-foreground text-xs">Question {Math.min(questionIndex + 1, fields.length)} of {fields.length}</p>
-      {restored && fields[Math.min(questionIndex, fields.length - 1)] && <AgentQuestionStep key={fields[Math.min(questionIndex, fields.length - 1)]?.key} workflow={kind} fieldKey={fields[Math.min(questionIndex, fields.length - 1)]?.key ?? ""} answers={a} value={a[fields[Math.min(questionIndex, fields.length - 1)]?.key ?? ""]} onChange={(v) => set(fields[Math.min(questionIndex, fields.length - 1)]?.key ?? "", v)} onReady={setReady} />}
+      {restored && currentField && <AgentQuestionStep key={currentField.key} workflow={kind} fieldKey={currentField.key} answers={a} value={a[currentField.key]} onChange={(v) => set(currentField.key, v)} onReady={setReady} />}
       {err && <p role="alert" className="text-red-400 text-sm">{err}</p>}
       <div className="flex items-center justify-between gap-2">
-        <Button variant="ghost" disabled={questionIndex === 0 && !onBack || saving} onClick={() => { if (questionIndex > 0) { setReady(null); setQuestionIndex((i) => i - 1); } else onBack?.(); }}>Back</Button>
+        <Button variant="ghost" disabled={questionIndex === 0 && !onBack || saving} onClick={() => { if (questionIndex > 0) { setReady(null); setQuestionIndex(questionIndex - 1); } else onBack?.(); }}>Back</Button>
         <span className="text-xs text-foreground/40">
           {draftState === "saving" ? "Saving draft..." : draftState === "saved" ? "Draft saved" : draftState === "failed" ? "Draft not saved" : ""}
         </span>
         <Button disabled={saving || !ready || !answerValid(ready, a[ready.key])} onClick={async () => {
           if (questionIndex >= fields.length - 1) { await submit(); return; }
           setSaving(true); setErr(null);
-          try { await saveQuestionProgress(kind, a, questionIndex + 1); if (!completed) onDraft(await saveSetupStage(kind, clean(a, fields), false)); setReady(null); setQuestionIndex((i) => i + 1); }
+          try { if (!completed) onDraft(await saveSetupStage(kind, clean(a, fields), false)); await saveQuestionProgress(kind, a, questionIndex + 1); setReady(null); setQuestionIndex(questionIndex + 1); }
           catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
         }} className="agent-action">
           {saving && <Loader2 className="w-4 h-4 animate-spin mr-1" />}{questionIndex < fields.length - 1 ? "Next" : completed ? "Save changes" : "Save and continue"}

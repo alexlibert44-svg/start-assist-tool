@@ -11,7 +11,7 @@ import { CommandCenter } from "@/components/command-center";
 import { PlanReview } from "@/components/plan-review";
 import { PLANS_KEY } from "@/hooks/use-plans";
 import { PlanningQuestions } from "@/components/planning-questions";
-import { questionsSchema, type AgentQuestion } from "@/shared/agent-questions";
+import { questionsSchema, workflowStateSchema, type AgentQuestion } from "@/shared/agent-questions";
 
 type LocalMessage = {
   id: number;
@@ -74,7 +74,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
 
   const persist = (sender: string, content: string, metadata: Record<string, unknown> = {}) =>
     addMessageRequest(conversationId, sender, content, metadata)
-      .then(() => queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY }))
+      .then((message) => { void queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY }); return message; })
       .catch((err) => {
         console.error("Failed to save message:", err);
         setSaveError("Some messages could not be saved. They may be missing after a refresh.");
@@ -201,7 +201,9 @@ export default function ChatPage({ conversationId }: { conversationId: string })
       setChatMessages((prev) => [...prev, aiMsg]);
 
       // 6. Save AI reply to server in the background
-      void persist(character.id, reply, { questions });
+      void persist(character.id, reply, { questions, questionError }).then((saved) => {
+        if (saved) setChatMessages((messages) => messages.map((m) => m.id === aiMsg.id ? { ...m, id: saved.id } : m));
+      });
     } finally {
       setIsAiTyping(false);
     }
@@ -273,7 +275,10 @@ export default function ChatPage({ conversationId }: { conversationId: string })
                     }`}
                   >
                     <p className="text-[15px] sm:text-base whitespace-pre-line">{msg.content.replace(/\*\*/g, "")}</p>
-                    {!isUser && msg.id === chatMessages.at(-1)?.id && !!msg.questions?.length && <PlanningQuestions questions={msg.questions} onAnswer={sendText} disabled={isAiTyping} />}
+                    {!isUser && msg.id === chatMessages.at(-1)?.id && !!msg.questions?.length && <PlanningQuestions key={msg.id} questions={msg.questions} onAnswer={sendText} disabled={isAiTyping} initial={(() => { const draft = convData?.conversation.metadata["questionDraft"] as { messageId?: number; answers?: unknown; step?: unknown } | undefined; const parsed = workflowStateSchema.safeParse({ questions: msg.questions, answers: draft?.answers, step: draft?.step }); return draft?.messageId === msg.id && parsed.success ? parsed.data : undefined; })()} onSave={async (answers, step) => {
+                      const res = await fetch(`/api/conversations/${conversationId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questionDraft: { messageId: msg.id, answers, step } }) });
+                      if (!res.ok) throw new Error("Could not save answers");
+                    }} />}
                     {msg.questionError && <p role="status" className="mt-3 text-sm text-muted-foreground">{msg.questionError}</p>}
                   </div>
                 </div>
