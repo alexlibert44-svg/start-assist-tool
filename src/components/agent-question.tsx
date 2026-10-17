@@ -23,23 +23,25 @@ export function AgentAnswer({ question: q, value, onChange }: { question: AgentQ
   </fieldset>;
 }
 
-export function AgentQuestionStep({ workflow, fieldKey, answers, value, onChange, onReady }: { workflow: Workflow; fieldKey: string; answers: Record<string, unknown>; value: unknown; onChange: (value: unknown) => void; onReady?: (question: AgentQuestion | null) => void }) {
-  const [question, setQuestion] = useState<AgentQuestion | null>(null);
+export function AgentQuestionStep({ workflow, fieldKey, answers, value, onChange, onReady, baseQuestion }: { workflow: Workflow; fieldKey: string; answers: Record<string, unknown>; value: unknown; onChange: (value: unknown) => void; onReady?: (question: AgentQuestion | null) => void; baseQuestion?: AgentQuestion }) {
+  const [question, setQuestion] = useState<AgentQuestion | null>(baseQuestion ?? null);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const [terminal, setTerminal] = useState(false);
   useEffect(() => {
     let live = true;
+    if (baseQuestion && retry === 0) { setQuestion(baseQuestion); onReady?.(baseQuestion); return () => { live = false; }; }
     setQuestion(null); setError(null); onReady?.(null);
     fetch("/api/agent-questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workflow, key: fieldKey, answers, resume: retry > 0 }) }).then(async (res) => {
       const body = await res.json(); if (!res.ok) { if (live) setTerminal(res.status === 403 || res.status === 404); throw new Error(body.message ?? "Could not prepare the question."); }
       const q = questionSchema.parse(body); if (q.key !== fieldKey) throw new Error("The question did not match this step.");
       if (live) { setQuestion(q); onReady?.(q); }
-    }).catch((e) => { if (live) setError(e instanceof Error ? e.message : "Could not prepare the question."); });
+    }).catch((e) => { if (live) { setError(e instanceof Error ? e.message : "Could not prepare the question."); if (baseQuestion) { setQuestion(baseQuestion); onReady?.(baseQuestion); setTerminal(true); } } });
     return () => { live = false; };
     // Answers are context at entry; changing a selection must not regenerate its question.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflow, fieldKey, retry]);
+  if (baseQuestion && question) return <div className="space-y-3"><AgentAnswer question={question} value={value} onChange={onChange} />{error && <p role="status" className="text-muted-foreground">AI personalization unavailable: {error}. Your base questions and saved answers remain available.</p>}{!terminal && <Button variant="outline" onClick={() => setRetry((n) => n + 1)}>Personalize with AI</Button>}</div>;
   if (error) return <div className="space-y-3"><p role="alert" className="text-foreground">{error}</p>{!terminal && <Button variant="outline" onClick={() => setRetry((n) => n + 1)}>Try again</Button>}</div>;
   if (!question) return <div role="status" className="flex items-center gap-3 py-8 text-muted-foreground"><Loader2 className="animate-spin" />Preparing your question...</div>;
   return <AgentAnswer question={question} value={value} onChange={onChange} />;
@@ -48,7 +50,7 @@ export function AgentQuestionStep({ workflow, fieldKey, answers, value, onChange
 export async function saveQuestionProgress(workflow: Workflow, answers: Record<string, unknown>, step: number) {
   const res = await fetch(`/api/agent-questions?workflow=${workflow}`);
   if (!res.ok) throw new Error("Could not load your question progress.");
-  const parsed = workflowStateSchema.safeParse(await res.json());
+  const parsed = workflowStateSchema.safeParse((await res.json()) ?? { questions: [], answers: {}, step: 0 });
   if (!parsed.success) throw new Error("Could not restore your questions.");
   const saved = await fetch("/api/agent-questions", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workflow, state: { ...parsed.data, answers, step } }) });
   if (!saved.ok) throw new Error("Could not save your progress. Please try again.");
