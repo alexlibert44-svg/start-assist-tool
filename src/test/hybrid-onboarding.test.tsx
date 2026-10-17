@@ -6,7 +6,7 @@ import { AgentQuestionStep } from "@/components/agent-question";
 const state = vi.hoisted(() => ({ profile: { preferredName: "", primaryGoal: "", biggestChallenge: "", phoneUsage: "", currentSituation: "", onboardingStep: 0, onboardingCompleted: false }, mutate: vi.fn() }));
 vi.mock("@/hooks/use-profile", () => ({ useProfile: () => ({ data: state.profile, isLoading: false }), useUpdateProfile: () => ({ mutateAsync: state.mutate, isPending: false }) }));
 vi.mock("@tanstack/react-router", () => ({ createFileRoute: () => (options: unknown) => options, useNavigate: () => vi.fn() }));
-vi.mock("framer-motion", () => ({ AnimatePresence: ({ children }: { children: React.ReactNode }) => children, motion: { div: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
+vi.mock("framer-motion", () => ({ AnimatePresence: ({ children }: { children: React.ReactNode }) => children, motion: { div: ({ children }: { children: React.ReactNode }) => <div>{children}</div> } }));
 vi.mock("@/hooks/use-conversations", () => ({ fetchConversations: async () => [{ id: "existing" }], createConversationRequest: vi.fn() }));
 import { Onboarding } from "@/routes/_authenticated/onboarding";
 
