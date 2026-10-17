@@ -29,7 +29,7 @@ type Answers = { preferredName: string; primaryGoal: string; biggestChallenge: s
 const QUESTIONS = ONBOARDING_QUESTIONS;
 const ANALYSIS = 5, TEAM = 6, DONE = 7;
 
-function Onboarding() {
+export function Onboarding() {
   const navigate = useNavigate();
   const { data: profile, isLoading } = useProfile();
   const update = useUpdateProfile();
@@ -43,24 +43,23 @@ function Onboarding() {
   // Restore saved answers and progress.
   useEffect(() => {
     if (!profile || step !== null) return;
-    setA((draft) => ({ ...draft,
+    const saved: Answers = {
       preferredName: profile.preferredName ?? "", primaryGoal: profile.primaryGoal ?? "",
       biggestChallenge: profile.biggestChallenge ?? "", phoneUsage: profile.phoneUsage ?? "",
       currentSituation: profile.currentSituation ?? "",
-    }));
-    setStep(profile.onboardingCompleted ? Math.max(TEAM, Math.min(profile.onboardingStep ?? TEAM, DONE)) : Math.min(profile.onboardingStep ?? 0, ANALYSIS));
-  }, [profile, step]);
-
-  useEffect(() => {
+    };
     let live = true;
     fetch("/api/agent-questions?workflow=onboarding").then(async (res) => {
       if (!res.ok) throw new Error();
       const parsed = workflowStateSchema.safeParse(await res.json());
-      if (live && parsed.success) setA((current) => ({ ...current, ...Object.fromEntries(Object.entries(parsed.data.answers).filter(([key, value]) => QUESTIONS.some((q) => q.key === key) && typeof value === "string")) }));
-      if (live) setRestored(true);
-    }).catch(() => { if (live) { setError("Could not restore your draft. Your saved profile is unchanged."); setRestored(true); } });
+      if (live) {
+        setA({ ...saved, ...(parsed.success && !profile.onboardingCompleted ? Object.fromEntries(Object.entries(parsed.data.answers).filter(([key, value]) => QUESTIONS.some((q) => q.key === key) && typeof value === "string")) : {}) });
+      }
+    }).catch(() => { if (live) { setA(saved); setError("Could not restore your draft. Your saved profile is unchanged."); } }).finally(() => {
+      if (live) { setStep(profile.onboardingCompleted ? Math.max(TEAM, Math.min(profile.onboardingStep ?? TEAM, DONE)) : Math.min(profile.onboardingStep ?? 0, ANALYSIS)); setRestored(true); }
+    });
     return () => { live = false; };
-  }, []);
+  }, [profile, step]);
   useEffect(() => {
     if (!dirty.current || step === null || step >= QUESTIONS.length || savingNext) return;
     const timer = setTimeout(() => { void saveQuestionProgress("onboarding", a, step).catch(() => setError("Draft not saved. Please try again.")); }, 800);
