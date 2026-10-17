@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { CHARACTERS, type CharacterId } from "@/store/use-character";
 import { createConversationRequest, fetchConversations } from "@/hooks/use-conversations";
-import { AgentQuestionStep, answerValid, saveQuestionProgress } from "@/components/agent-question";
-import { workflowStateSchema, type AgentQuestion } from "@/shared/agent-questions";
+import { AgentAnswer, saveQuestionProgress } from "@/components/agent-question";
+import { workflowStateSchema } from "@/shared/agent-questions";
+import { ONBOARDING_QUESTIONS, initialAnswerValid, initialProfileSchema } from "@/shared/onboarding-questions";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({
@@ -25,13 +26,7 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 });
 
 type Answers = { preferredName: string; primaryGoal: string; biggestChallenge: string; phoneUsage: string; currentSituation: string };
-const QUESTIONS: { key: keyof Answers; title: string; options?: string[] }[] = [
-  { key: "preferredName", title: "What should we call you?" },
-  { key: "primaryGoal", title: "What is your main goal right now?", options: [] },
-  { key: "biggestChallenge", title: "What is your biggest challenge?", options: [] },
-  { key: "phoneUsage", title: "About how much time do you spend on your phone each day?", options: [] },
-  { key: "currentSituation", title: "Which best describes your situation?", options: [] },
-];
+const QUESTIONS = ONBOARDING_QUESTIONS;
 const ANALYSIS = 5, TEAM = 6, DONE = 7;
 
 function Onboarding() {
@@ -40,7 +35,6 @@ function Onboarding() {
   const update = useUpdateProfile();
   const [step, setStep] = useState<number | null>(null);
   const [a, setA] = useState<Answers>({ preferredName: "", primaryGoal: "", biggestChallenge: "", phoneUsage: "", currentSituation: "" });
-  const [readyQuestion, setReadyQuestion] = useState<AgentQuestion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
   const dirty = useRef(false);
@@ -49,12 +43,12 @@ function Onboarding() {
   // Restore saved answers and progress.
   useEffect(() => {
     if (!profile || step !== null) return;
-    setA({
+    setA((draft) => ({ ...draft,
       preferredName: profile.preferredName ?? "", primaryGoal: profile.primaryGoal ?? "",
       biggestChallenge: profile.biggestChallenge ?? "", phoneUsage: profile.phoneUsage ?? "",
       currentSituation: profile.currentSituation ?? "",
-    });
-    setStep(profile.onboardingCompleted ? Math.max(TEAM, Math.min(profile.onboardingStep ?? TEAM, DONE)) : Math.min(profile.onboardingStep ?? 0, ANALYSIS - 1));
+    }));
+    setStep(profile.onboardingCompleted ? Math.max(TEAM, Math.min(profile.onboardingStep ?? TEAM, DONE)) : Math.min(profile.onboardingStep ?? 0, ANALYSIS));
   }, [profile, step]);
 
   useEffect(() => {
@@ -68,10 +62,10 @@ function Onboarding() {
     return () => { live = false; };
   }, []);
   useEffect(() => {
-    if (!dirty.current || !readyQuestion || step === null || savingNext) return;
+    if (!dirty.current || step === null || step >= QUESTIONS.length || savingNext) return;
     const timer = setTimeout(() => { void saveQuestionProgress("onboarding", a, step).catch(() => setError("Draft not saved. Please try again.")); }, 800);
     return () => clearTimeout(timer);
-  }, [a, readyQuestion, step, savingNext]);
+  }, [a, step, savingNext]);
 
   if (isLoading || step === null || !restored) {
     return <div className="flex-1 flex items-center justify-center text-foreground/40 text-sm">Loading your progress...</div>;
@@ -84,14 +78,16 @@ function Onboarding() {
   };
 
   const q = QUESTIONS[step];
-  const value = q ? a[q.key].trim() : "";
+  const key = q?.key as keyof Answers | undefined;
+  const value = key ? a[key].trim() : "";
   const next = async () => {
-    if (!q || !readyQuestion || savingNext || !answerValid(readyQuestion, a[q.key])) return;
+    if (!q || !key || savingNext || !initialAnswerValid(q, value)) return;
     setSavingNext(true);
     try {
       await saveQuestionProgress("onboarding", a, step);
       const nextStep = step + 1;
-      if (await save({ [q.key]: value, ...(q.key === "preferredName" ? { name: value } : {}), onboardingStep: nextStep })) { setReadyQuestion(null); setStep(nextStep); }
+      const answers = nextStep === QUESTIONS.length ? initialProfileSchema.parse({ ...a, [key]: value }) : { [key]: value };
+      if (await save({ ...answers, ...(key === "preferredName" ? { name: value } : {}), onboardingStep: nextStep })) setStep(nextStep);
     } catch (e) { setError((e as Error).message); }
     finally { setSavingNext(false); }
   };
@@ -110,14 +106,14 @@ function Onboarding() {
             </div>
             <AnimatePresence mode="wait">
               <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                <AgentQuestionStep key={q.key} workflow="onboarding" fieldKey={q.key} answers={a} value={a[q.key]} onChange={(v) => { dirty.current = true; setA({ ...a, [q.key]: typeof v === "string" ? v : "" }); }} onReady={setReadyQuestion} />
+                <AgentAnswer key={q.key} question={q} value={value} onChange={(v) => { dirty.current = true; setA({ ...a, [q.key]: typeof v === "string" ? v : "" }); }} />
               </motion.div>
             </AnimatePresence>
-            {!value && <p className="text-foreground/40 text-xs mt-3">{q.options ? "Choose one option to continue." : "Please enter a name to continue."}</p>}
+            {!initialAnswerValid(q, value) && <p className="text-foreground/40 text-xs mt-3">{value === "Other" ? "Please add your own answer." : q.type === "text" ? "Please enter a name (up to 40 characters)." : "Choose an option or add your own answer."}</p>}
             {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
             <div className="flex justify-between mt-6">
-              <Button variant="ghost" disabled={step === 0} onClick={() => { setReadyQuestion(null); setStep(step - 1); }} className="text-foreground/70">Back</Button>
-              <Button disabled={!readyQuestion || !answerValid(readyQuestion, a[q.key]) || update.isPending || savingNext} onClick={next} className="agent-action">
+              <Button variant="ghost" disabled={step === 0 || savingNext} onClick={() => setStep(step - 1)} className="text-foreground/70">Back</Button>
+              <Button disabled={!initialAnswerValid(q, value) || update.isPending || savingNext} onClick={next} className="agent-action">
                 {step === QUESTIONS.length - 1 ? "Finish" : "Next"}
               </Button>
             </div>
