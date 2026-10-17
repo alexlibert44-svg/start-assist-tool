@@ -1,4 +1,8 @@
-# UI and dynamic agent refinement
+# Hybrid onboarding
+- [ ] Make the five initial questions application-managed with validation, draft saving and resume, without AI calls.
+- [ ] Render specialist base questions independently of optional AI personalization and save validated profiles.
+- [ ] Verify the reported React error and run regression and authenticated non-destructive checks.
+- [ ] Verify saved profile context for Larry; live AI remains blocked by service credits.
 - [x] Polish existing Google sign-in without adding unconfigured methods; hosted settings confirm Google enabled, Apple/email disabled.
 - [x] Centralize and apply original character themes.
 - [x] Add validated persistent AI questions to onboarding, Team Setup, and Larry planning, including saved planning answer drafts.

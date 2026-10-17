@@ -348,6 +348,10 @@ export const Route = createFileRoute("/api/chat")({
             console.error("Context injection error (non-fatal):", ctxErr);
           }
           try {
+            if (charId !== "Larry") {
+              const basic = await storage.getProfile();
+              if (basic) system += `\n\nSaved initial onboarding context (use only facts relevant to your specialist role; never repeat already answered questions): ${JSON.stringify({ preferredName: basic.preferredName, primaryGoal: basic.primaryGoal, biggestChallenge: basic.biggestChallenge, currentSituation: basic.currentSituation })}`;
+            }
             system += await profileContext(scope.userId, charId);
           } catch (pErr) {
             console.error("Profile context error (non-fatal):", pErr);

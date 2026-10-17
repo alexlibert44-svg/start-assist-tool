@@ -51,7 +51,7 @@ export async function saveStage(uid: string, kind: SetupKind, answers: unknown, 
   const up = await c.from("specialist_profiles").upsert(
     {
       user_id: uid, kind, character_id: KIND_CHARACTER[kind], answers: parsed as never, updated_at: now,
-      completed_at: wasDone ? existing.data!.completed_at : complete ? now : null,
+      completed_at: wasDone ? existing.data?.completed_at ?? null : complete ? now : null,
     },
     { onConflict: "user_id,kind" },
   );

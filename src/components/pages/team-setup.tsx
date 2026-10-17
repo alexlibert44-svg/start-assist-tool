@@ -14,7 +14,7 @@ import {
 type A = Record<string, unknown>;
 import { FIELDS, type Field } from "@/shared/question-fields";
 import { AgentQuestionStep, answerValid, saveQuestionProgress } from "@/components/agent-question";
-import { workflowStateSchema, type AgentQuestion } from "@/shared/agent-questions";
+import { questionSchema, workflowStateSchema, type AgentQuestion } from "@/shared/agent-questions";
 
 export default function TeamSetupPage({ edit }: { edit?: SetupKind }) {
   const navigate = useNavigate();
@@ -122,6 +122,7 @@ function StageForm({ kind, initial, completed, onBack, onSaved, onDraft }: {
   const fields = FIELDS[kind].filter((f) => !f.showIf || f.showIf(a));
   const questionIndex = Math.max(0, fields.findIndex((f) => f.key === fieldKey));
   const currentField = fields[questionIndex];
+  const baseQuestion = currentField ? questionSchema.parse({ ...currentField, options: currentField.options ?? [], optional: !!currentField.optional, custom: !!currentField.custom }) : undefined;
   const setQuestionIndex = (index: number) => { const field = fields[Math.min(index, fields.length - 1)]; if (field) setFieldKey(field.key); };
   const set = (k: string, v: unknown) => { dirty.current = true; setA((p) => { const n = { ...p }; if (v === undefined || v === "") delete n[k]; else n[k] = v; return n; }); };
 
@@ -178,7 +179,7 @@ function StageForm({ kind, initial, completed, onBack, onSaved, onDraft }: {
         </div>
       </div>
       <p className="text-muted-foreground text-xs">Question {Math.min(questionIndex + 1, fields.length)} of {fields.length}</p>
-      {restored && currentField && <AgentQuestionStep key={currentField.key} workflow={kind} fieldKey={currentField.key} answers={a} value={a[currentField.key]} onChange={(v) => set(currentField.key, v)} onReady={setReady} />}
+      {restored && currentField && <AgentQuestionStep key={currentField.key} workflow={kind} fieldKey={currentField.key} answers={a} value={a[currentField.key]} onChange={(v) => set(currentField.key, v)} onReady={setReady} baseQuestion={baseQuestion} />}
       {err && <p role="alert" className="text-red-400 text-sm">{err}</p>}
       <div className="flex items-center justify-between gap-2">
         <Button variant="ghost" disabled={questionIndex === 0 && !onBack || saving} onClick={() => { if (questionIndex > 0) { setReady(null); setQuestionIndex(questionIndex - 1); } else onBack?.(); }}>Back</Button>
