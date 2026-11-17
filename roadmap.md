@@ -1,10 +1,11 @@
 # Hybrid onboarding
-- [ ] Make the five initial questions application-managed with validation, draft saving and resume, without AI calls.
-- [ ] Render specialist base questions independently of optional AI personalization and save validated profiles.
-- [ ] Verify the reported React error and run regression and authenticated non-destructive checks.
-- [ ] Verify saved profile context for Larry; live AI remains blocked by service credits.
+- [x] Make the five initial questions application-managed with validation, draft saving and resume, without AI calls.
+- [x] Render specialist base questions independently of optional AI personalization and save validated profiles.
+- [x] Verify the reported React error and run regression and authenticated non-destructive checks.
+- [x] Test owner-scoped saved specialist context for Larry and specialist visibility with isolated fixtures; source confirms saved initial profile injection.
 - [x] Polish existing Google sign-in without adding unconfigured methods; hosted settings confirm Google enabled, Apple/email disabled.
 - [x] Centralize and apply original character themes.
-- [x] Add validated persistent AI questions to onboarding, Team Setup, and Larry planning, including saved planning answer drafts.
+- [x] Keep optional validated persistent AI personalization in Team Setup and Larry planning, including saved planning answer drafts; initial questions are application-managed.
 - [x] Test selections, validation, back/restored drafts and failed saves with automated tests; verify desktop/mobile sign-in and mobile setup failure state, with existing profile, habits and points unchanged.
 - [ ] Verify successful real AI generation and full saved-question workflows after AI service credits are funded; current service response is 402 “Not enough credits”. Actual Google OAuth round-trip remains unverified.
+- [ ] Verify a new account's full real initial-profile write and specialist completion sequence; held to avoid overwriting existing user answers. Initial completion/refresh and failed saves tested with isolated fixtures; authenticated existing-data reads and specialist fallback verified unchanged.

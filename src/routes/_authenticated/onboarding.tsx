@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { CHARACTERS, type CharacterId } from "@/store/use-character";
 import { createConversationRequest, fetchConversations } from "@/hooks/use-conversations";
@@ -49,14 +48,16 @@ export function Onboarding() {
       currentSituation: profile.currentSituation ?? "",
     };
     let live = true;
+    let resumeStep = profile.onboardingStep ?? 0;
     fetch("/api/agent-questions?workflow=onboarding").then(async (res) => {
       if (!res.ok) throw new Error();
       const parsed = workflowStateSchema.safeParse(await res.json());
+      if (parsed.success && !profile.onboardingCompleted) resumeStep = parsed.data.step;
       if (live) {
         setA({ ...saved, ...(parsed.success && !profile.onboardingCompleted ? Object.fromEntries(Object.entries(parsed.data.answers).filter(([key, value]) => QUESTIONS.some((q) => q.key === key) && typeof value === "string")) : {}) });
       }
     }).catch(() => { if (live) { setA(saved); setError("Could not restore your draft. Your saved profile is unchanged."); } }).finally(() => {
-      if (live) { setStep(profile.onboardingCompleted ? Math.max(TEAM, Math.min(profile.onboardingStep ?? TEAM, DONE)) : Math.min(profile.onboardingStep ?? 0, ANALYSIS)); setRestored(true); }
+      if (live) { setStep(profile.onboardingCompleted ? Math.max(TEAM, Math.min(profile.onboardingStep ?? TEAM, DONE)) : Math.min(resumeStep, ANALYSIS)); setRestored(true); }
     });
     return () => { live = false; };
   }, [profile, step]);
@@ -78,15 +79,19 @@ export function Onboarding() {
 
   const q = QUESTIONS[step];
   const key = q?.key as keyof Answers | undefined;
-  const value = key ? a[key].trim() : "";
+  const value = key ? a[key] : "";
   const next = async () => {
     if (!q || !key || savingNext || !initialAnswerValid(q, value)) return;
     setSavingNext(true);
     try {
       await saveQuestionProgress("onboarding", a, step);
       const nextStep = step + 1;
-      const answers = nextStep === QUESTIONS.length ? initialProfileSchema.parse({ ...a, [key]: value }) : { [key]: value };
-      if (await save({ ...answers, ...(key === "preferredName" ? { name: value } : {}), onboardingStep: nextStep })) setStep(nextStep);
+      const answers = nextStep === QUESTIONS.length ? initialProfileSchema.parse({ ...a, [key]: value }) : { [key]: value.trim() };
+      if (await save({ ...answers, ...(key === "preferredName" ? { name: value.trim() } : {}), onboardingStep: nextStep })) {
+        setStep(nextStep);
+        // Advance the persisted draft only after the canonical profile save succeeds.
+        await saveQuestionProgress("onboarding", a, nextStep);
+      }
     } catch (e) { setError((e as Error).message); }
     finally { setSavingNext(false); }
   };

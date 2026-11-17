@@ -73,4 +73,22 @@ describe("Hybrid onboarding", () => {
     expect(screen.getByRole("radio", { name: "Improve discipline" })).toHaveAttribute("aria-checked", "true");
     expect(ready).toHaveBeenLastCalledWith(q);
   });
+  it("restores the draft navigation position independently of the latest answered profile step", async () => {
+    state.profile = { preferredName: "Tester", primaryGoal: "Improve discipline", biggestChallenge: "", phoneUsage: "", currentSituation: "", onboardingStep: 2, onboardingCompleted: false };
+    workflow = { questions: ONBOARDING_QUESTIONS, answers: { preferredName: "Tester", primaryGoal: "Improve discipline" }, step: 1 };
+    render(<Onboarding />);
+    await waitFor(() => expect(screen.getByRole("radio", { name: "Improve discipline" })).toHaveAttribute("aria-checked", "true"));
+    expect(state.mutate).not.toHaveBeenCalled();
+  });
+  it("keeps the entered answer and does not advance when profile persistence fails", async () => {
+    state.mutate.mockRejectedValue(new Error("Save failed"));
+    render(<Onboarding />);
+    const input = await screen.findByRole("textbox", { name: "What is your name?" });
+    fireEvent.change(input, { target: { value: "Unsaved Tester" } });
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Next" })).toBeEnabled());
+    expect(input).toHaveValue("Unsaved Tester");
+    expect(state.profile.onboardingStep).toBe(0);
+    expect(workflow?.step).toBe(0);
+  });
 });
