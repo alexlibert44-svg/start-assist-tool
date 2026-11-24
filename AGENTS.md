@@ -25,3 +25,4 @@
 - "Build My First Week" calls /api/plans/start, which marks one Larry conversation with metadata.planning = "first_week" and resumes it on later clicks, so planning never duplicates sessions.
 - Essential onboarding and specialist questions use shared application-managed configuration; owner-scoped profile workflow JSON stores drafts with atomic key updates, and existing canonical fields store validated profiles. AI personalization is optional and never gates questionnaire progress.
 - Planning answer drafts live in their conversation metadata keyed by the saved question message ID; this keeps drafts isolated across conversations and reloads.
+- Multi-record completion rewards and plan lifecycle mutations use service-role-only database functions after the server has validated user ownership, because these actions must commit atomically without lost points or partial plans.

@@ -64,6 +64,13 @@
       "when": 1792026957623,
       "tag": "0008_atomic_agent_workflow_updates",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795501867754,
+      "tag": "0009_atomic_progress_and_plan_actions",
+      "breakpoints": true
     }
   ]
 }

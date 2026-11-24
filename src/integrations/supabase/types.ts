@@ -314,9 +314,40 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_plan_atomic: {
+        Args: {
+          p_plan_id: string
+          p_tz_offset_minutes: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      materialize_plan_items: {
+        Args: { p_items: Json; p_tz_offset_minutes: number; p_user_id: string }
+        Returns: Json
+      }
+      save_plan_schedule_atomic: {
+        Args: {
+          p_expected_version: number
+          p_items: Json
+          p_plan_id: string
+          p_tz_offset_minutes: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
       set_agent_workflow: {
         Args: { p_key: string; p_state: Json; p_user_id: string }
         Returns: undefined
+      }
+      set_habit_completion_atomic: {
+        Args: {
+          p_completed: boolean
+          p_habit_id: number
+          p_local_date: string
+          p_user_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {
