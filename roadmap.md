@@ -1,11 +1,7 @@
-# Hybrid onboarding
-- [x] Make the five initial questions application-managed with validation, draft saving and resume, without AI calls.
-- [x] Render specialist base questions independently of optional AI personalization and save validated profiles.
-- [x] Verify the reported React error and run regression and authenticated non-destructive checks.
-- [x] Test owner-scoped saved specialist context for Larry and specialist visibility with isolated fixtures; source confirms saved initial profile injection.
-- [x] Polish existing Google sign-in without adding unconfigured methods; hosted settings confirm Google enabled, Apple/email disabled.
-- [x] Centralize and apply original character themes.
-- [x] Keep optional validated persistent AI personalization in Team Setup and Larry planning, including saved planning answer drafts; initial questions are application-managed.
-- [x] Test selections, validation, back/restored drafts and failed saves with automated tests; verify desktop/mobile sign-in and mobile setup failure state, with existing profile, habits and points unchanged.
-- [ ] Verify successful real AI generation and full saved-question workflows after AI service credits are funded; current service response is 402 “Not enough credits”. Actual Google OAuth round-trip remains unverified.
-- [ ] Verify a new account's full real initial-profile write and specialist completion sequence; held to avoid overwriting existing user answers. Initial completion/refresh and failed saves tested with isolated fixtures; authenticated existing-data reads and specialist fallback verified unchanged.
+# Your Time with Larry AI — product restoration
+- [x] Audit existing onboarding, specialist setup, plans, habits, progress, profile, and agent paths.
+- [ ] Preserve working authentication, application-managed questions, saved profiles, existing conversations, plans, habits, tasks, and points.
+- [ ] Close verified gaps in agent context, planning persistence, approved-plan lifecycle, and truthful failure handling.
+- [ ] Add weekly plan and habit history views based only on saved schedules and completion events.
+- [ ] Add grouped personal settings and a real-data Larry command center using existing saved records.
+- [ ] Add focused regression tests, run the suite, verify the central flows, and report remaining infrastructure limits.
