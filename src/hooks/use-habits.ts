@@ -5,6 +5,7 @@ import type { Habit } from "@/shared/schema";
 const HABITS_KEY = [api.habits.list.path];
 const PROFILE_KEY = [api.profile.get.path];
 export const STATS_KEY = ["/api/stats"];
+export const HABIT_HISTORY_KEY = ["/api/habits/history"];
 const tzq = () => `tz=${new Date().getTimezoneOffset()}`;
 const withTz = (url: string) => `${url}${url.includes("?") ? "&" : "?"}${tzq()}`;
 // Re-read on focus and every minute so "today" rolls over after local midnight.
@@ -14,6 +15,20 @@ export type Stats = {
   points: number; consecutiveDays: number; today: string;
   dueToday: number; completedToday: number; dailyCompletionRate: number | null;
 };
+export type HabitCompletion = { id: number; habitId: number | null; name: string; kind: string; localDate: string; points: number; completedAt: string };
+
+export function useHabitHistory(startDate: string, endDate: string) {
+  return useQuery<HabitCompletion[]>({
+    queryKey: [...HABIT_HISTORY_KEY, startDate, endDate],
+    enabled: !!startDate && !!endDate,
+    queryFn: async () => {
+      const params = new URLSearchParams({ start: startDate, end: endDate });
+      const res = await fetch(`/api/habits/history?${params.toString()}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch completion history");
+      return (await res.json()) as HabitCompletion[];
+    },
+  });
+}
 
 export function useStats() {
   return useQuery<Stats>({
@@ -63,6 +78,7 @@ export function useCreateHabit() {
         old ? [...old, newHabit] : [newHabit]
       );
       queryClient.invalidateQueries({ queryKey: STATS_KEY });
+      queryClient.invalidateQueries({ queryKey: HABIT_HISTORY_KEY });
     },
   });
 }
@@ -93,6 +109,7 @@ export function useUpdateHabit() {
       // Profile score changed — refetch it.
       queryClient.invalidateQueries({ queryKey: PROFILE_KEY });
       queryClient.invalidateQueries({ queryKey: STATS_KEY });
+      queryClient.invalidateQueries({ queryKey: HABIT_HISTORY_KEY });
     },
   });
 }
@@ -118,6 +135,7 @@ export function useDeleteHabit() {
       // Profile score may have changed (if habit was completed) — refetch it.
       queryClient.invalidateQueries({ queryKey: PROFILE_KEY });
       queryClient.invalidateQueries({ queryKey: STATS_KEY });
+      queryClient.invalidateQueries({ queryKey: HABIT_HISTORY_KEY });
     },
   });
 }

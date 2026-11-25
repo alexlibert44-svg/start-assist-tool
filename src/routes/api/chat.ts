@@ -5,7 +5,7 @@ import type { Habit } from "@/shared/schema";
 import { conversations, ownerFromRequest } from "@/server/conversations.server";
 import { isUuid, type ConversationCharacter, type OwnerScope } from "@/shared/conversations";
 
-import { getDraft, PlanError, saveDraft } from "@/server/plans.server";
+import { getDraft, listPlans, PlanError, saveDraft } from "@/server/plans.server";
 import { localDate } from "@/server/storage.server";
 import { dayName, PLAN_CATEGORIES, PLAN_CHARACTERS, type RawItem } from "@/shared/plans";
 import { generateQuestions } from "@/server/agent-questions.server";
@@ -14,11 +14,11 @@ import type { AgentQuestion } from "@/shared/agent-questions";
 const MODEL = "google/gemini-3-flash-preview";
 
 const PLANNING_PROMPT = `FIRST-WEEK PLANNING MODE (this conversation). You guide a short lifestyle-planning conversation, then propose a 7-day plan.
-1. Reuse what is already saved (onboarding profile, Sensei/Hassan/Dr Neo setup answers, existing habits and tasks). Never re-ask something already saved; briefly state what you are using. No specialist has generated recommendations yet — base activities on their saved answers and never claim a specialist produced a plan.
+1. Reuse what is already saved (onboarding profile, Sensei/Hassan/Dr Neo setup answers, existing habits and tasks, and saved plan history). Never re-ask something already saved; briefly state what you are using. Treat setup answers as self-reported facts, not specialist-generated recommendations.
 2. Ask ONLY what is missing, 2-3 short questions per message, numbered: wake-up and sleep times; fixed commitments (school/university/work hours and days); fixed or flexible schedule; which existing daily habits to include. Learning time, exercise days/times and reflection times are usually in the saved profiles — confirm, don't re-ask.
 3. When you have enough, summarize the key facts in one short list and ask the user to confirm or correct. After they confirm, call propose_week_plan.
 4. The plan: exactly the 7 days from the start date; learning (character Sensei), fitness (Hassan), development (Dr Neo), the user's chosen existing habits (category habit, habit_id = its real id), and fixed commitments (category commitment) only if the user stated them. No overlaps, nothing inside commitments or sleep, realistic durations (learning 20-90 min, workouts 20-60 min, reflection 10-30 min), at most ~4 activities per day, respect training days and preferred times.
-5. After proposing, tell the user to review it with the "Review proposed week" button where they can edit times, days, durations, add or remove activities, then press "Approve and Save Plan". If they ask for changes in chat, call propose_week_plan again with the full adjusted list, keeping their previous answers.
+5. Check saved plans and avoid duplicating or conflicting with an active schedule unless the user explicitly asks to replace it. After proposing, tell the user to review it with the "Review proposed week" button where they can edit times, days, durations, add or remove activities, then press "Approve and Save Plan". If they ask for changes in chat, call propose_week_plan again with the full adjusted list, keeping their previous answers.
 6. Never say the plan is approved, saved as active, or that tasks were created — only the user's approval does that. Scheduling earns no points.`;
 const SPECIALISTS = ["Sensei", "Dr Neo", "Hassan"] as const;
 const ALL = ["Larry", ...SPECIALISTS] as const;
@@ -108,6 +108,7 @@ function toolsFor(charId: string): Tool[] {
     fn("complete_task", "Mark a task (or today's habit) complete after the user explicitly confirmed finishing it. Awards 5 points once.", { task_id: { type: "integer" } }, ["task_id"]),
     fn("delete_task", "Delete a task.", { task_id: { type: "integer" } }, ["task_id"]),
     fn("get_progress", "Read the user's real points balance, consecutive active days and today's completion rate."),
+    fn("get_plan_history", "Read the user's real active, proposed, and previous plans with schedule and completion status."),
     fn("propose_week_plan", "Save (or replace) the 7-day PROPOSAL shown to the user for review. It is a draft: never approved by this tool. Each call fully replaces the previous proposal.", {
       name: { type: "string" },
       description: { type: "string", description: "One-line summary of the week's focus" },
@@ -144,7 +145,7 @@ const taskView = (h: Habit) => {
 type Ctx = {
   storage: Storage;
   charId: string; tz: number; scope: OwnerScope; conversationId: string | null;
-  handoff: { character: string; question: string; conversationId: string; reused: boolean } | null; changed: boolean; planChanged: boolean;
+  handoff: { character: string; question: string; conversationId: string; reused: boolean } | null; changed: boolean; planChanged: boolean; uncertain: boolean;
 };
 
 async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): Promise<unknown> {
@@ -242,6 +243,14 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): P
           daily_completion_rate_percent: st.dailyCompletionRate ?? "no activities scheduled today",
         };
       }
+      case "get_plan_history": {
+        if (!ctx.scope.userId) return { ok: false, error: "not signed in" };
+        const plans = await listPlans(ctx.scope.userId, ctx.tz);
+        return { ok: true, plans: plans.map((p) => ({
+          id: p.id, name: p.name, status: p.status, start_date: p.startDate, end_date: p.endDate,
+          activities: p.schedule.map((it) => ({ title: it.title, date: it.date, start: it.start, end: it.end, category: it.category, character: it.character, completed: it.completed })),
+        })) };
+      }
       case "complete_linked_activity": {
         const open = (await ctx.storage.getHabits(ctx.tz)).filter((h) => !h.completed && h.linkedCharacter === ctx.charId);
         const target = args["task_id"] ? open.find((h) => h.id === Number(args["task_id"])) : open[0];
@@ -256,6 +265,7 @@ async function runTool(name: string, args: Record<string, unknown>, ctx: Ctx): P
     return { ok: false, error: "unknown tool" };
   } catch (e) {
     console.error("tool error", name, e);
+    if (["create_task", "update_task", "complete_task", "delete_task", "propose_week_plan", "complete_linked_activity"].includes(name)) ctx.uncertain = true;
     return { ok: false, error: `Database error: ${(e as Error).message}` };
   }
 }
@@ -314,6 +324,7 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        let responseContext: Ctx | null = null;
         try {
           const { message, character, characterId, history, handoffFrom, clientNow, tzOffsetMinutes, conversationId } = (await request.json()) as {
             message?: unknown; character?: string; characterId?: string; history?: unknown; conversationId?: string;
@@ -322,11 +333,16 @@ export const Route = createFileRoute("/api/chat")({
           if (!message || typeof message !== "string" || !message.trim()) {
             return Response.json({ reply: "No message provided." }, { status: 400 });
           }
-          const charId = resolveCharacterId(character || characterId);
+          const requestedCharacter = resolveCharacterId(character || characterId);
           const scope = (await ownerFromRequest(request));
           if (!scope.userId) return Response.json({ reply: "Please sign in." }, { status: 401 });
+          const requestedConversationId = isUuid(conversationId) ? conversationId : null;
+          const savedConversation = requestedConversationId ? await conversations.getConversation(scope, requestedConversationId) : undefined;
+          if (requestedConversationId && !savedConversation) return Response.json({ reply: "This conversation could not be found." }, { status: 404 });
+          const charId = savedConversation?.characterId ?? requestedCharacter;
           const storage = storageFor(scope.userId);
-          const ctx: Ctx = { storage, charId, tz: typeof tzOffsetMinutes === "number" ? tzOffsetMinutes : 0, scope, conversationId: isUuid(conversationId) ? conversationId : null, handoff: null, changed: false, planChanged: false };
+          const ctx: Ctx = { storage, charId, tz: typeof tzOffsetMinutes === "number" ? tzOffsetMinutes : 0, scope, conversationId: requestedConversationId, handoff: null, changed: false, planChanged: false, uncertain: false };
+          responseContext = ctx;
 
           let planningMode = false;
           let system = CHARACTER_SYSTEM_PROMPTS[charId] + "\n\nAlways reply in the same language as the user's latest message (e.g. English question -> English answer), regardless of earlier messages or the user's location.";
@@ -335,7 +351,7 @@ export const Route = createFileRoute("/api/chat")({
           const offStr = `${sign}${String(Math.floor(Math.abs(off) / 60)).padStart(2, "0")}:${String(Math.abs(off) % 60).padStart(2, "0")}`;
           system += `\n\nUser's current local time: ${clientNow ?? new Date().toISOString()} (UTC offset ${offStr}).`;
           try {
-            const habits = await storage.getHabits();
+            const habits = await storage.getHabits(ctx.tz);
             if (charId === "Larry") {
               if (habits.length > 0) system += `\n\nCurrent tasks:\n${JSON.stringify(habits.map(taskView))}`;
               const prof = await storage.getProfile();
@@ -368,8 +384,19 @@ export const Route = createFileRoute("/api/chat")({
             try {
               const prof = await storage.getProfile();
               if (prof) system += `\n\nInitial onboarding profile: ${JSON.stringify({ preferredName: prof.preferredName, primaryGoal: prof.primaryGoal, biggestChallenge: prof.biggestChallenge, phoneUsage: prof.phoneUsage, currentSituation: prof.currentSituation })}`;
-              const conv = ctx.conversationId ? await conversations.getConversation(scope, ctx.conversationId) : undefined;
-              const draft = await getDraft(scope.userId);
+              const conv = savedConversation;
+              const allPlans = await listPlans(scope.userId, ctx.tz);
+              const draft = allPlans.find((p) => p.status === "draft") ?? await getDraft(scope.userId);
+              const planSummaries = allPlans.slice(0, 6).map((p) => ({
+                name: p.name, status: p.status, startDate: p.startDate, endDate: p.endDate,
+                activities: p.schedule.length, completed: p.schedule.filter((it) => it.completed).length,
+                categories: [...new Set(p.schedule.map((it) => it.category))],
+              }));
+              if (planSummaries.length) system += `\n\nSaved plan history (actual records; do not infer beyond these): ${JSON.stringify(planSummaries)}`;
+              const savedQuestionDraft = conv?.metadata["questionDraft"] as { answers?: unknown } | undefined;
+              if (savedQuestionDraft?.answers && typeof savedQuestionDraft.answers === "object") {
+                system += `\n\nSaved planning answers for this conversation: ${JSON.stringify(savedQuestionDraft.answers)}`;
+              }
               const today = localDate(ctx.tz);
               if (conv?.metadata["planning"] === "first_week" || draft) {
                 planningMode = true;
@@ -383,11 +410,18 @@ export const Route = createFileRoute("/api/chat")({
           }
 
           const msgs: Msg[] = [{ role: "system", content: system }];
-          if (Array.isArray(history)) {
-            for (const h of (history as { sender: string; content: unknown }[]).slice(-16)) {
-              if (h && typeof h.content === "string") msgs.push({ role: h.sender === "user" ? "user" : "assistant", content: h.content });
-            }
+          let historyRows: { sender: string; content: string }[] = [];
+          if (savedConversation && ctx.conversationId) {
+            const persisted = await conversations.getMessages(scope, ctx.conversationId);
+            historyRows = persisted.map((m) => ({ sender: m.sender, content: m.content }));
+            const last = historyRows[historyRows.length - 1];
+            if (last?.sender === "user" && last.content === message.trim()) historyRows.pop();
+            historyRows = historyRows.slice(-32);
+          } else if (Array.isArray(history)) {
+            historyRows = (history as { sender: string; content: unknown }[]).filter((h) => h && typeof h.content === "string")
+              .slice(-32).map((h) => ({ sender: h.sender, content: h.content as string }));
           }
+          for (const h of historyRows) msgs.push({ role: h.sender === "user" ? "user" : "assistant", content: h.content });
           msgs.push({ role: "user", content: message.trim() });
 
           const tools = toolsFor(charId);
@@ -419,10 +453,17 @@ export const Route = createFileRoute("/api/chat")({
             try { questions = await generateQuestions(scope.userId, "planning", "lifestyle", { history, latestMessage: message, latestReply: reply }, request.signal); }
             catch { questionError = "Answer choices could not be prepared. You can still reply to Larry below."; }
           }
-          return Response.json({ reply, questions, questionError, handoff: ctx.handoff, dataChanged: ctx.changed, planChanged: ctx.planChanged });
+          return Response.json({ reply, questions, questionError, handoff: ctx.handoff, dataChanged: ctx.changed || ctx.uncertain, planChanged: ctx.planChanged, saveUncertain: ctx.uncertain });
         } catch (error) {
           console.error("CHAT ERROR:", error);
-          return Response.json({ reply: "Temporary error, please try again. Nothing was saved from this message." }, { status: 200 });
+          const changed = !!responseContext?.changed || !!responseContext?.planChanged;
+          const uncertain = !!responseContext?.uncertain;
+          const reply = changed
+            ? "Some requested changes were saved before the assistant response failed. Refresh your tracker or plans before asking again."
+            : uncertain
+              ? "The assistant could not confirm whether a requested change finished. Refresh your tracker and plans before retrying."
+              : "The assistant could not finish this response. No changes were saved by this request.";
+          return Response.json({ reply, dataChanged: changed || uncertain, planChanged: !!responseContext?.planChanged, saveUncertain: uncertain }, { status: 200 });
         }
       },
     },

@@ -86,9 +86,29 @@ export async function saveDraft(uid: string, input: { name?: string; description
 
 /** User edits from the review screen — same validation as Larry's proposal. */
 export async function updateDraft(uid: string, id: string, items: RawItem[]): Promise<Plan> {
+  return updatePlanSchedule(uid, id, items);
+}
+
+/** Updates a draft or an active plan and synchronizes its linked tasks atomically. */
+export async function updatePlanSchedule(uid: string, id: string, rawItems: RawItem[], tz = 0): Promise<Plan> {
   const row = await getPlanRow(uid, id);
-  if (!row || row.status !== "draft") throw new PlanError("This proposal is no longer editable.", 409);
-  return saveDraft(uid, { startDate: row.start_date!, items, name: row.name });
+  if (!row) throw new PlanError("Plan not found.", 404);
+  if (row.status !== "draft" && row.status !== "active") throw new PlanError("This plan is no longer editable.", 409);
+  if (!row.start_date) throw new PlanError("This plan has no start date and cannot be edited.", 409);
+  if (!Array.isArray(rawItems) || rawItems.length === 0) throw new PlanError("The plan needs at least one activity.");
+  if (rawItems.length > 80) throw new PlanError("Too many activities for one week (max 80).");
+  const version = row.version + 1;
+  const { items, errors } = normalizeSchedule(rawItems, row.start_date, version);
+  const habits = await storageFor(uid).getHabits(tz);
+  const habitIds = new Set(habits.map((h) => h.id));
+  for (const it of items) if (it.habitId != null && !habitIds.has(it.habitId)) errors.push(`"${it.title}": linked activity ${it.habitId} does not exist.`);
+  if (errors.length) throw new PlanError(errors.join(" "));
+  const c = await db();
+  const result = await c.rpc("save_plan_schedule_atomic", {
+    p_user_id: uid, p_plan_id: id, p_items: items as never, p_tz_offset_minutes: tz, p_expected_version: row.version,
+  });
+  if (result.error) throwPlanRpcError(result.error);
+  return toPlan(result.data as unknown as Row);
 }
 
 export async function rejectDraft(uid: string, id: string): Promise<void> {
@@ -100,45 +120,19 @@ export async function rejectDraft(uid: string, id: string): Promise<void> {
 /** Approves a draft exactly once: claims it, creates one task per unlinked activity, archives the previous active plan. */
 export async function approveDraft(uid: string, id: string, tz = 0): Promise<Plan> {
   const c = await db();
-  const row = await getPlanRow(uid, id);
-  if (!row) throw new PlanError("Plan not found.", 404);
-  if (row.status === "active") return toPlan(row); // repeated click
-  if (row.status !== "draft") throw new PlanError("This plan can no longer be approved.", 409);
-  const claim = await c.from("plans").update({ status: "approving" }).eq("id", id).eq("user_id", uid).eq("status", "draft").select();
-  if (claim.error) throw new Error(claim.error.message);
-  if (!claim.data?.length) {
-    const again = await getPlanRow(uid, id);
-    if (again?.status === "active") return toPlan(again);
-    throw new PlanError("This plan is already being saved.", 409);
+  const result = await c.rpc("approve_plan_atomic", { p_user_id: uid, p_plan_id: id, p_tz_offset_minutes: tz });
+  if (result.error) throwPlanRpcError(result.error);
+  return toPlan(result.data as unknown as Row);
+}
+
+function throwPlanRpcError(error: { message: string; code?: string }): never {
+  if (error.message.includes("PLAN_NOT_FOUND") || error.code === "P0002") throw new PlanError("Plan not found.", 404);
+  if (error.message.includes("PLAN_ACTIVITY_LINK_INVALID")) throw new PlanError("A linked activity no longer exists. Your plan was not changed.", 409);
+  if (error.message.includes("PLAN_VERSION_CONFLICT")) throw new PlanError("This plan changed elsewhere. Refresh it before saving again.", 409);
+  if (error.message.includes("PLAN_NOT_EDITABLE") || error.message.includes("PLAN_NOT_APPROVABLE") || error.code === "40001") {
+    throw new PlanError("This plan is no longer in a state that can be changed.", 409);
   }
-  const storage = storageFor(uid);
-  const created: number[] = [];
-  try {
-    const items = (toPlan(row).schedule).map((it) => ({ ...it }));
-    for (const it of items) {
-      if (it.habitId != null || it.category === "commitment") continue;
-      const [y, m, d] = it.date.split("-").map(Number);
-      const [hh, mi] = it.end.split(":").map(Number);
-      const dueUtc = Date.UTC(y!, m! - 1, d!, hh!, mi!) + tz * 60000;
-      const t = await storage.createHabit({
-        name: `${it.title} (${it.day.slice(0, 3)} ${it.start})`, kind: "task", dueAt: new Date(dueUtc).toISOString(),
-        linkedCharacter: it.character === "Larry" ? null : it.character,
-      } as never, tz);
-      created.push(t.id);
-      it.habitId = t.id;
-    }
-    const arch = await c.from("plans").update({ status: "archived", updated_at: new Date().toISOString() }).eq("user_id", uid).eq("status", "active");
-    if (arch.error) throw new Error(arch.error.message);
-    const now = new Date().toISOString();
-    const fin = await c.from("plans").update({ status: "active", schedule: items as never, approved_at: now, updated_at: now })
-      .eq("id", id).eq("user_id", uid).select().single();
-    if (fin.error) throw new Error(fin.error.message);
-    return toPlan(fin.data as Row);
-  } catch (e) {
-    for (const hid of created) await storage.deleteHabit(hid).catch(() => undefined);
-    await c.from("plans").update({ status: "draft" }).eq("id", id).eq("user_id", uid);
-    throw e;
-  }
+  throw new Error(error.message);
 }
 
 export { localDate };

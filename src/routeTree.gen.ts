@@ -31,6 +31,7 @@ import { Route as ApiTeamSetupRouteImport } from './routes/api/team-setup'
 import { Route as AuthenticatedChatConversationIdRouteImport } from './routes/_authenticated/chat.$conversationId'
 import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations.$id'
 import { Route as ApiHabitsIdRouteImport } from './routes/api/habits.$id'
+import { Route as ApiHabitsHistoryRouteImport } from './routes/api/habits.history'
 import { Route as ApiMessagesClearRouteImport } from './routes/api/messages.clear'
 import { Route as ApiPlansIdRouteImport } from './routes/api/plans.$id'
 import { Route as ApiPlansStartRouteImport } from './routes/api/plans.start'
@@ -148,6 +149,11 @@ const ApiHabitsIdRoute = ApiHabitsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ApiHabitsRoute,
 } as any)
+const ApiHabitsHistoryRoute = ApiHabitsHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => ApiHabitsRoute,
+} as any)
 const ApiMessagesClearRoute = ApiMessagesClearRouteImport.update({
   id: '/clear',
   path: '/clear',
@@ -202,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
+  '/api/habits/history': typeof ApiHabitsHistoryRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
   '/api/plans/$id': typeof ApiPlansIdRouteWithChildren
   '/api/plans/start': typeof ApiPlansStartRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByTo {
   '/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
+  '/api/habits/history': typeof ApiHabitsHistoryRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
   '/api/plans/$id': typeof ApiPlansIdRouteWithChildren
   '/api/plans/start': typeof ApiPlansStartRoute
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/_authenticated/chat/$conversationId': typeof AuthenticatedChatConversationIdRoute
   '/api/conversations/$id': typeof ApiConversationsIdRouteWithChildren
   '/api/habits/$id': typeof ApiHabitsIdRoute
+  '/api/habits/history': typeof ApiHabitsHistoryRoute
   '/api/messages/clear': typeof ApiMessagesClearRoute
   '/api/plans/$id': typeof ApiPlansIdRouteWithChildren
   '/api/plans/start': typeof ApiPlansStartRoute
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | '/chat/$conversationId'
     | '/api/conversations/$id'
     | '/api/habits/$id'
+    | '/api/habits/history'
     | '/api/messages/clear'
     | '/api/plans/$id'
     | '/api/plans/start'
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/chat/$conversationId'
     | '/api/conversations/$id'
     | '/api/habits/$id'
+    | '/api/habits/history'
     | '/api/messages/clear'
     | '/api/plans/$id'
     | '/api/plans/start'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chat/$conversationId'
     | '/api/conversations/$id'
     | '/api/habits/$id'
+    | '/api/habits/history'
     | '/api/messages/clear'
     | '/api/plans/$id'
     | '/api/plans/start'
@@ -532,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHabitsIdRouteImport
       parentRoute: typeof ApiHabitsRoute
     }
+    '/api/habits/history': {
+      id: '/api/habits/history'
+      path: '/history'
+      fullPath: '/api/habits/history'
+      preLoaderRoute: typeof ApiHabitsHistoryRouteImport
+      parentRoute: typeof ApiHabitsRoute
+    }
     '/api/messages/clear': {
       id: '/api/messages/clear'
       path: '/clear'
@@ -624,10 +643,12 @@ const ApiConversationsRouteWithChildren =
 
 interface ApiHabitsRouteChildren {
   ApiHabitsIdRoute: typeof ApiHabitsIdRoute
+  ApiHabitsHistoryRoute: typeof ApiHabitsHistoryRoute
 }
 
 const ApiHabitsRouteChildren: ApiHabitsRouteChildren = {
   ApiHabitsIdRoute: ApiHabitsIdRoute,
+  ApiHabitsHistoryRoute: ApiHabitsHistoryRoute,
 }
 
 const ApiHabitsRouteWithChildren = ApiHabitsRoute._addFileChildren(

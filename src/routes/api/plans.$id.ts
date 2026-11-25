@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireUserId } from "@/server/auth.server";
-import { PlanError, rejectDraft, updateDraft } from "@/server/plans.server";
+import { PlanError, rejectDraft, updatePlanSchedule } from "@/server/plans.server";
+import { tzFrom } from "@/server/storage.server";
 
 const fail = (e: unknown) => {
   if (e instanceof PlanError) return Response.json({ message: e.message }, { status: e.status });
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/api/plans/$id")({
         try {
           const body = (await request.json()) as { items?: unknown };
           if (!Array.isArray(body.items)) return Response.json({ message: "items required" }, { status: 400 });
-          return Response.json(await updateDraft(uid, params.id, body.items));
+          return Response.json(await updatePlanSchedule(uid, params.id, body.items, tzFrom(new URL(request.url).searchParams.get("tz"))));
         } catch (e) { return fail(e); }
       },
       DELETE: async ({ request, params }) => {
