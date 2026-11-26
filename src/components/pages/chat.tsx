@@ -125,7 +125,7 @@ export default function ChatPage({ conversationId }: { conversationId: string })
       .map((m) => ({ sender: m.sender, content: m.content }));
 
     // 3. Save user message to server in the background (don't block display)
-    void persist("user", userText);
+    await persist("user", userText);
 
     let reply = "I'm here. How can I help?";
     let questions: AgentQuestion[] = [];

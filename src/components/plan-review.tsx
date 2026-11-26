@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import { CalendarDays, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -13,43 +12,45 @@ const field = "bg-white/5 border border-white/10 rounded-md px-2 py-1 text-white
 
 /** Review/edit/approve Larry's draft proposal. Nothing is approved until the user presses Approve. */
 export function PlanReview({ conversationId, openSignal }: { conversationId: string; openSignal: number }) {
-  const navigate = useNavigate();
   const { data } = usePlans();
-  const draft = data?.find((p) => p.status === "draft" && (!p.conversationId || p.conversationId === conversationId));
+  const proposal = data?.find((p) => p.status === "draft" && (!p.conversationId || p.conversationId === conversationId));
+  const approved = data?.find((p) => p.status === "active" && p.conversationId === conversationId);
+  const plan = proposal ?? approved;
   const [open, setOpen] = useState(false);
   useEffect(() => { if (openSignal > 0) setOpen(true); }, [openSignal]);
-  if (!draft) return null;
+  if (!plan) return null;
   return (
     <>
-      <button onClick={() => setOpen(true)} className="glass-panel mt-3 w-full shrink-0 flex items-center justify-between gap-3 px-4 py-3 border border-purple-500/30 text-left hover:bg-white/10 transition-colors">
-        <span className="flex items-center gap-2 text-white text-sm font-medium"><CalendarDays className="w-4 h-4 text-purple-300" /> Review proposed week</span>
-        <span className="text-white/50 text-xs">{draft.schedule.length} activities · not approved yet</span>
-      </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#0b0b14] border-white/10 text-white">
-          <Editor key={`${draft.id}-${draft.version}`} draft={draft} onDone={async (approved) => {
-            setOpen(false);
-            await queryClient.invalidateQueries({ queryKey: PLANS_KEY });
-            if (approved) {
-              void queryClient.invalidateQueries({ queryKey: [api.habits.list.path] });
-              void queryClient.invalidateQueries({ queryKey: STATS_KEY });
-              void navigate({ to: "/plans" });
-            }
-          }} />
-        </DialogContent>
-      </Dialog>
+      <Button variant="outline" onClick={() => setOpen(true)} className="mt-3 h-auto w-full justify-between gap-3 border-primary/30 px-4 py-3 text-left">
+        <span className="flex items-center gap-2 text-sm font-medium"><CalendarDays className="h-4 w-4 text-primary" /> {plan.status === "active" ? "Open approved week" : "Review proposed week"}</span>
+        <span className="text-xs text-muted-foreground">{plan.schedule.length} activities · {plan.status === "active" ? "saved plan" : "awaiting review"}</span>
+      </Button>
+      <PlanEditorDialog plan={plan} open={open} onOpenChange={setOpen} />
     </>
   );
 }
 
-function Editor({ draft, onDone }: { draft: Plan; onDone: (approved: boolean) => void }) {
-  const [items, setItems] = useState<PlanItem[]>(draft.schedule);
+export function PlanEditorDialog({ plan, open, onOpenChange, onDone }: {
+  plan: Plan; open: boolean; onOpenChange: (open: boolean) => void; onDone?: (approved: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto bg-background text-foreground">
+        <Editor key={`${plan.id}-${plan.version}`} plan={plan} onDone={(approved) => { onOpenChange(false); onDone?.(approved); }} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Editor({ plan, onDone }: { plan: Plan; onDone: (approved: boolean) => void }) {
+  const [items, setItems] = useState<PlanItem[]>(plan.schedule);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState<null | "save" | "approve" | "reject">(null);
   const [error, setError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
-  const start = draft.startDate!;
-  const dates = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const isDraft = plan.status === "draft";
+  const start = plan.startDate;
+  const dates = start ? Array.from({ length: 7 }, (_, i) => addDays(start, i)) : [];
 
   const patch = (id: string, u: Partial<PlanItem>) => {
     setItems((xs) => xs.map((x) => (x.id === id ? { ...x, ...u } : x)));
@@ -57,13 +58,16 @@ function Editor({ draft, onDone }: { draft: Plan; onDone: (approved: boolean) =>
   };
   const remove = (id: string) => { setItems((xs) => xs.filter((x) => x.id !== id)); setDirty(true); setSavedMsg(null); };
   const add = (date: string) => {
-    setItems((xs) => [...xs, { id: crypto.randomUUID(), title: "New activity", description: "", date, day: dayName(date), start: "18:00", end: "18:30", durationMinutes: 30, category: "other", character: "Larry", habitId: null, completed: false, planVersion: draft.version }]);
+    setItems((xs) => [...xs, { id: crypto.randomUUID(), title: "New activity", description: "", date, day: dayName(date), start: "18:00", end: "18:30", durationMinutes: 30, category: "other", character: "Larry", habitId: null, completed: false, planVersion: plan.version + 1 }]);
     setDirty(true); setSavedMsg(null);
   };
 
   const save = async () => {
-    const p = await saveDraftItems(draft.id, items);
+    const p = await saveDraftItems(plan.id, items);
+    setItems(p.schedule);
     await queryClient.invalidateQueries({ queryKey: PLANS_KEY });
+    await queryClient.invalidateQueries({ queryKey: [api.habits.list.path] });
+    await queryClient.invalidateQueries({ queryKey: STATS_KEY });
     setDirty(false);
     return p;
   };
@@ -71,10 +75,10 @@ function Editor({ draft, onDone }: { draft: Plan; onDone: (approved: boolean) =>
     if (busy) return;
     setBusy(kind); setError(null);
     try {
-      if (kind === "reject") { await rejectPlan(draft.id); onDone(false); return; }
+      if (kind === "reject") { await rejectPlan(plan.id); onDone(false); return; }
       if (dirty) await save();
       if (kind === "save") { setSavedMsg("Changes saved."); return; }
-      await approvePlan(draft.id);
+      await approvePlan(plan.id);
       onDone(true);
     } catch (e) { setError((e as Error).message); } finally { setBusy(null); }
   };
@@ -82,9 +86,9 @@ function Editor({ draft, onDone }: { draft: Plan; onDone: (approved: boolean) =>
   return (
     <div className="space-y-4">
       <DialogHeader>
-        <DialogTitle className="font-display text-xl">{draft.name}</DialogTitle>
+        <DialogTitle className="font-display text-xl">{plan.name}</DialogTitle>
         <DialogDescription className="text-white/60">
-          Proposal v{draft.version} · {start} to {draft.endDate}. Edit anything below, then approve. Ask Larry in the chat if you want him to rework it.
+          {isDraft ? `Proposal v${plan.version} · ` : `Saved plan v${plan.version} · `}{start ?? "Dates unavailable"} to {plan.endDate ?? "—"}. {isDraft ? "Review and edit the proposal before approval." : "Edit this saved schedule; linked tasks stay synchronized."}
         </DialogDescription>
       </DialogHeader>
       {dates.map((d) => {
@@ -127,14 +131,14 @@ function Editor({ draft, onDone }: { draft: Plan; onDone: (approved: boolean) =>
       })}
       {error && <p className="text-sm text-red-300">{error}</p>}
       {savedMsg && <p className="text-sm text-emerald-300">{savedMsg}</p>}
-      <div className="flex flex-wrap gap-2 justify-end sticky bottom-0 bg-[#0b0b14] pt-3">
-        <Button variant="ghost" className="text-white/60 hover:bg-white/10" disabled={!!busy} onClick={() => run("reject")}>Reject proposal</Button>
-        <Button variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10" disabled={!!busy || !dirty} onClick={() => run("save")}>
+      <div className="flex flex-wrap gap-2 justify-end sticky bottom-0 bg-background pt-3">
+        {isDraft && <Button variant="ghost" className="text-muted-foreground" disabled={!!busy} onClick={() => run("reject")}>Reject proposal</Button>}
+        <Button variant="outline" disabled={!!busy || !dirty} onClick={() => run("save")}>
           {busy === "save" && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Save changes
         </Button>
-        <Button className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white" disabled={!!busy || items.length === 0} onClick={() => run("approve")}>
+        {isDraft && <Button disabled={!!busy || items.length === 0} onClick={() => run("approve")}>
           {busy === "approve" && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Approve and Save Plan
-        </Button>
+        </Button>}
       </div>
     </div>
   );
