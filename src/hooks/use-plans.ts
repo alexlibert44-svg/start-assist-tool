@@ -24,7 +24,7 @@ export async function startPlanning() {
 }
 
 export async function saveDraftItems(id: string, items: PlanItem[]) {
-  return json<Plan>(await fetch(`/api/plans/${id}`, {
+  return json<Plan>(await fetch(`/api/plans/${id}?${tz()}`, {
     method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items }),
   }), "Could not save your changes.");
 }

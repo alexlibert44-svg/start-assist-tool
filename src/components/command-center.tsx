@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Check, ClipboardList, Loader2, Target, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTeamSetup } from "@/hooks/use-team-setup";
@@ -9,7 +9,6 @@ import { useCharacter } from "@/store/use-character";
 import { queryClient } from "@/lib/queryClient";
 import { CONVERSATIONS_KEY } from "@/hooks/use-conversations";
 import { KIND_LABEL } from "@/shared/team-setup";
-import { Link } from "@tanstack/react-router";
 
 export const PLANNING_KICKOFF = "Let's build my first week.";
 
@@ -23,7 +22,8 @@ export function CommandCenter({ planningStarted }: { planningStarted: boolean })
   const stats = useStats();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const today = stats.data?.today ?? new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = stats.data?.today ?? new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const allHabits = habits.data ?? [];
   const dueToday = allHabits.filter((habit) => habit.kind !== "task" || (habit.dueAt && new Date(new Date(habit.dueAt).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) === today));
   const pendingTasks = allHabits.filter((habit) => habit.kind === "task" && !habit.completed);
@@ -92,7 +92,7 @@ export function CommandCenter({ planningStarted }: { planningStarted: boolean })
         </Button>
       </div> : null}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    </div>
+    </section>
   );
 }
 
